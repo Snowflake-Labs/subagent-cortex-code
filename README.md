@@ -33,14 +33,61 @@ Snowflake Execution   General Tasks
 
 ### Prerequisites
 
-1. **Claude Code CLI** installed and configured
-2. **Cortex Code CLI** installed (v1.0.42+)
-   ```bash
-   # Check installation
-   which cortex
-   cortex --version
-   ```
-3. **Python 3.8+** with standard library (no external dependencies)
+#### 1. Claude Code CLI
+Install and configure Claude Code CLI. Follow the [official installation guide](https://docs.anthropic.com/en/docs/claude-code).
+
+#### 2. Cortex Code CLI
+Install Cortex Code CLI (v1.0.42 or later):
+
+```bash
+# Install via official script
+curl -LsS https://ai.snowflake.com/static/cc-scripts/install.sh | sh
+```
+
+After installation, verify:
+```bash
+which cortex
+cortex --version
+```
+
+**Documentation:** https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-cli#install-cortex-code-cli
+
+#### 3. uv Package Manager
+Required for Python script execution in this skill:
+
+```bash
+# macOS/Linux
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Or via Homebrew
+brew install uv
+```
+
+Verify installation:
+```bash
+which uv
+uv --version
+```
+
+#### 4. Snowflake Connection Configuration
+Configure a Snowflake connection in Cortex Code:
+
+```bash
+# Interactive connection setup
+cortex connections create
+
+# Or manually edit ~/.snowflake/cortex/settings.json
+```
+
+Your connection needs appropriate permissions for the databases/schemas you'll work with. See [Cortex Code permissions documentation](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-cli#install-cortex-code-cli) for details.
+
+**Minimum Required Permissions:**
+- `USAGE` on database and schema
+- `SELECT` on tables for read operations
+- `CREATE TABLE`, `CREATE VIEW`, etc. for write operations (if using RW envelope)
+
+#### 5. Python 3.8+
+The skill scripts use Python standard library only (no external dependencies required).
 
 ### Setup
 
