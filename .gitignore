@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Temporary files
+/tmp/
+*.tmp
+*.log
+.DS_Store
+
+# Cortex cache
+/tmp/cortex-capabilities.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+Thumbs.db
