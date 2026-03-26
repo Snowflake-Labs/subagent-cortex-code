@@ -187,6 +187,26 @@ cortex-code/
 
 ## How It Works
 
+### Dynamic Skill Discovery
+
+The skill automatically discovers Cortex Code's native capabilities at runtime rather than using hardcoded mappings:
+
+1. **Discover Bundled Skills**: Runs `cortex skill list` to enumerate all available skills (32+ bundled skills in v1.0.42)
+2. **Parse Metadata**: Reads each skill's `SKILL.md` from `~/.local/share/cortex/{version}/bundled_skills/`
+3. **Extract Triggers**: Parses skill descriptions and "Use when" patterns (e.g., "data quality", "semantic view", "DMF")
+4. **Cache Capabilities**: Stores skill metadata in `/tmp/cortex-capabilities.json` for the session
+5. **Semantic Routing**: Uses LLM reasoning to match user requests with discovered skill capabilities
+
+This approach is **future-proof**: new Cortex Code releases with additional skills work automatically without updating the Claude Code integration.
+
+**Example Discovered Skills:**
+- `data-quality` → Data quality monitoring, DMFs, table comparison
+- `semantic-view` → Cortex Analyst semantic views and data models
+- `cortex-agent` → Multi-tool agent deployment and orchestration
+- `machine-learning` → Model training, predictions, feature engineering
+- `dynamic-tables` → Incremental refresh, materialized views
+- ...and 27+ more specialized Snowflake skills
+
 ### Step 1: Request Analysis
 ```python
 # User: "Check data quality for the SALES_DATA table"
