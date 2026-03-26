@@ -13,6 +13,14 @@ The Cortex Code Integration Skill bridges Claude Code and Cortex Code CLI, allow
 - 📊 **Context Enrichment**: Passes conversation history to Cortex for informed execution
 - 🛡️ **Permission Surfacing**: All Cortex tool calls visible to user via Claude Code UI
 
+## Background
+
+AI coding assistants excel as generalists, but domain expertise matters. Ask Claude Code to build a web server, and it excels. Ask it about Snowflake's dynamic tables, Snowpark optimization, or Cortex Search semantic views — and you're asking a general practitioner to perform specialist surgery.
+
+Snowflake has that specialist: **Cortex Code**, an AI agent trained on Snowflake's entire technical stack. It knows the quirks of Snowflake's metadata views, when to use dynamic tables versus streams, and can debug semantic view configurations from institutional knowledge.
+
+This skill bridges both agents using a **multi-agent harness pattern**: Claude Code acts as the orchestrator (managing conversation, routing, general tasks), while Cortex Code runs as a specialized agent (invoked only for Snowflake operations, executing autonomously, streaming results back). From the user's perspective, it's one conversation. Behind the scenes, two specialists collaborate — each in their domain of expertise.
+
 ## Architecture
 
 ```
@@ -255,6 +263,50 @@ Cortex Action:
 
 Result: Comprehensive data quality report with recommendations
 ```
+
+## Real-World Example: End-to-End Agent Deployment
+
+**Scenario:** Build a Cortex Agent for macroeconomic analysis in 15 minutes
+
+```
+User: "Analyze the FINANCE__ECONOMICS database. Create a Cortex agent
+with Cortex Analyst that can answer macro economic questions.
+Put all curated assets in DB_STOCK."
+```
+
+**What Happens:**
+
+**Minutes 0-2: Database Exploration** (Cortex Code)
+- Explores 56 views in FINANCE__ECONOMICS.CYBERSYN
+- Identifies 5 key tables: GDP, unemployment, inflation, interest rates, indicators
+
+**Minutes 2-8: Semantic View Creation** (Cortex Code)
+- Generates semantic model: 5 tables, 4 relationships, 3 verified queries
+- Deploys to `DB_STOCK.CURATED.MACRO_ECONOMICS_INDICATORS`
+
+**Minutes 8-12: Cortex Agent Creation** (Cortex Code)
+- Creates `DB_STOCK.CURATED.MACRO_ECONOMICS_ANALYST`
+- Configures with Cortex Analyst + semantic view
+
+**Minutes 12-15: Testing** (Cortex Code)
+- Tests 5 questions automatically
+- Results: US GDP 0.7%, Unemployment 4.4%, UK inflation 3.03%
+
+**Continued Collaboration:**
+```
+User: "Compare inflation rates across US, UK, Germany, France, Japan"
+→ Cortex invokes the new agent → 8 seconds → UK 3.03%, US 2.39%,
+  Germany 2.08%, Japan 2.08%, France 0.79%
+
+User: "Research FIBO ontology for finance data modeling"
+→ Claude Code handles directly → Returns FIBO, SDMX, XBRL analysis
+
+User: "Analyze FINANCE__ECONOMICS structure for FIBO mapping"
+→ Back to Cortex → Database analysis + semantic alignment →
+  Recommendation: SDMX for timeseries, FIBO for entities
+```
+
+**Result:** Production-ready Cortex Agent deployed autonomously with semantic model, tested, and immediately queryable — all in one conversation flow.
 
 ## Troubleshooting
 
