@@ -1,1 +1,445 @@
-[{"text": "# Extended Troubleshooting Guide\\n\\n## Common Issues and Solutions\\n\\n### 1. Skill Not Triggering\\n\\n#### Symptom\\nCortex Code skill doesn't activate when asking Snowflake questions.\\n\\n#### Diagnosis\\n```bash\\n# Check if skill is loaded\\nls -la ~/.claude/skills/cortex-code/\\n\\n# Test routing logic\\npython ~/.claude/skills/cortex-code/scripts/route_request.py \\\\\\n  --prompt \\\"Show me Snowflake tables\\\"\\n```\\n\\n#### Solutions\\n\\n**A. Skill not loaded**\\n```bash\\n# Ensure skill directory exists\\nmkdir -p ~/.claude/skills/cortex-code\\n\\n# Copy skill files\\ncp -r cortex-code ~/.claude/skills/\\n\\n# Restart Claude Code\\n```\\n\\n**B. Description too vague**\\nEdit `~/.claude/skills/cortex-code/SKILL.md` frontmatter:\\n```yaml\\ndescription: Routes Snowflake-related operations... [ADD MORE TRIGGER KEYWORDS]\\n```\\n\\n**C. Routing logic issue**\\nAdd keywords to `scripts/route_request.py`:\\n```python\\nSNOWFLAKE_INDICATORS = [\\n    \\\"snowflake\\\", \\\"cortex\\\", \\\"warehouse\\\",\\n    # Add your specific terms\\n    \\\"your_warehouse_name\\\",\\n    \\\"your_database_name\\\"\\n]\\n```\\n\\n---\\n\\n### 2. Cortex CLI Not Found\\n\\n#### Symptom\\n```\\nError: cortex: command not found\\n```\\n\\n#### Diagnosis\\n```bash\\nwhich cortex\\necho $PATH\\n```\\n\\n#### Solutions\\n\\n**A. Cortex not installed**\\nCheck Snowflake documentation for Cortex Code installation.\\n\\n**B. Cortex not in PATH**\\n```bash\\n# Find Cortex installation\\nfind ~ -name \\\"cortex\\\" -type f 2>/dev/null\\n\\n# Add to PATH (adjust path as needed)\\nexport PATH=\\\"$HOME/.snowflake/cortex/bin:$PATH\\\"\\n\\n# Make permanent (add to ~/.zshrc or ~/.bashrc)\\necho 'export PATH=\\\"$HOME/.snowflake/cortex/bin:$PATH\\\"' >> ~/.zshrc\\n```\\n\\n**C. Verify installation**\\n```bash\\ncortex --version\\ncortex connections list\\n```\\n\\n---\\n\\n### 3. Permission Denied Errors\\n\\n#### Symptom\\n```\\nPermission denied: Tool denied: headless mode requires --allowed-tools\\n```\\n\\n#### Explanation\\nThis is EXPECTED behavior. Organization policy blocks `--dangerously-allow-all-tool-calls`, so we use `--allowed-tools` explicitly.\\n\\n#### Diagnosis\\n```bash\\n# Check predicted tools\\npython ~/.claude/skills/cortex-code/scripts/predict_tools.py \\\\\\n  --prompt \\\"Your query here\\\"\\n```\\n\\n#### Solutions\\n\\n**A. Tool prediction incomplete**\\nUpdate `scripts/predict_tools.py` to include missing tool:\\n```python\\nBASE_SNOWFLAKE_TOOLS = [\\n    \\\"snowflake_sql_execute\\\", \\n    \\\"bash\\\", \\n    \\\"read\\\",\\n    # Add missing tool\\n    \\\"write\\\"\\n]\\n```\\n\\n**B. Runtime tool addition**\\nThe skill should handle this automatically by:\\n1. Detecting permission denial\\n2. Asking user for approval\\n3. Re-invoking with updated tools\\n\\nIf this fails, check `scripts/execute_cortex.py` for proper permission handling.\\n\\n---\\n\\n### 4. Snowflake Connection Errors\\n\\n#### Symptom\\n```\\nError: Connection refused\\nError: No connection configured\\n```\\n\\n#### Diagnosis\\n```bash\\n# Check connections\\ncortex connections list\\n\\n# Check settings\\ncat ~/.snowflake/cortex/settings.json\\n```\\n\\n#### Solutions\\n\\n**A. No connection configured**\\n```bash\\n# Configure connection via Cortex\\ncortex config set cortexAgentConnectionName \\\"your_connection_name\\\"\\n```\\n\\n**B. Connection not active**\\nVerify connection in Snowflake:\\n```sql\\n-- Test connection\\nSELECT CURRENT_USER();\\n```\\n\\n**C. Authentication expired**\\n```bash\\n# Re-authenticate\\n# (Method depends on your auth setup: SSO, username/password, key-pair)\\n```\\n\\n---\\n\\n### 5. Capabilities Cache Stale\\n\\n#### Symptom\\nSkill doesn't recognize new Cortex skills or features.\\n\\n#### Diagnosis\\n```bash\\n# Check cache age\\nls -la /tmp/cortex-capabilities.json\\n\\n# View cached capabilities\\ncat /tmp/cortex-capabilities.json | jq\\n```\\n\\n#### Solutions\\n\\n**A. Manual refresh**\\n```bash\\npython ~/.claude/skills/cortex-code/scripts/discover_cortex.py\\n```\\n\\n**B. Automatic refresh**\\nCapabilities are cached per Claude session. Start new session to refresh.\\n\\n**C. Force discovery**\\nDelete cache and re-run:\\n```bash\\nrm /tmp/cortex-capabilities.json\\npython ~/.claude/skills/cortex-code/scripts/discover_cortex.py\\n```\\n\\n---\\n\\n### 6. Context Enrichment Too Large\\n\\n#### Symptom\\n```\\nError: Prompt too long\\nError: Token limit exceeded\\n```\\n\\n#### Diagnosis\\n```bash\\n# Check recent session sizes\\npython ~/.claude/skills/cortex-code/scripts/read_cortex_sessions.py --verbose\\n```\\n\\n#### Solutions\\n\\n**A. Reduce session limit**\\nEdit `scripts/read_cortex_sessions.py`:\\n```python\\ndef find_recent_sessions(limit=1):  # Reduced from 3\\n```\\n\\n**B. Summarize context**\\nInstead of full session content, extract key points only.\\n\\n**C. Filter relevant context**\\nOnly include Snowflake-related exchanges, skip others.\\n\\n---\\n\\n### 7. Routing Ambiguity\\n\\n#### Symptom\\nRequests routed incorrectly (Snowflake query goes to Claude, or vice versa).\\n\\n#### Diagnosis\\n```bash\\n# Test routing\\npython ~/.claude/skills/cortex-code/scripts/route_request.py \\\\\\n  --prompt \\\"Show me table data\\\"\\n\\n# Check confidence\\n# Low confidence (<70%) indicates ambiguity\\n```\\n\\n#### Solutions\\n\\n**A. Add explicit context**\\nUser should mention \\\"Snowflake\\\" or \\\"Cortex\\\" explicitly:\\n- \\u2718 \\\"Show me table data\\\" (ambiguous)\\n- \\u2714 \\\"Show me Snowflake table data\\\" (clear)\\n\\n**B. Improve routing logic**\\nAdd context-aware checks in `scripts/route_request.py`:\\n```python\\ndef analyze_with_llm_logic(prompt, capabilities, recent_context=None):\\n    # Include recent conversation context\\n    if recent_context and \\\"snowflake\\\" in recent_context.lower():\\n        snowflake_score += 2\\n```\\n\\n**C. Ask user**\\nFor low confidence (<70%), prompt user:\\n```python\\nif confidence < 0.7:\\n    # Ask user: \\\"Are you referring to Snowflake?\\\"\\n```\\n\\n---\\n\\n### 8. Script Execution Errors\\n\\n#### Symptom\\n```\\nPermission denied: scripts/discover_cortex.py\\n```\\n\\n#### Diagnosis\\n```bash\\nls -la ~/.claude/skills/cortex-code/scripts/\\n```\\n\\n#### Solutions\\n\\n**A. Make scripts executable**\\n```bash\\nchmod +x ~/.claude/skills/cortex-code/scripts/*.py\\n```\\n\\n**B. Check Python path**\\n```bash\\nwhich python3\\n\\n# Scripts use #!/usr/bin/env python3\\n# Ensure python3 is in PATH\\n```\\n\\n**C. Dependencies**\\n```bash\\n# Ensure standard library modules are available\\npython3 -c \\\"import json, subprocess, sys, pathlib\\\"\\n```\\n\\n---\\n\\n### 9. Streaming Output Errors\\n\\n#### Symptom\\n```\\nError parsing line: ...\\nWarning: Failed to parse JSON\\n```\\n\\n#### Diagnosis\\nCortex output format changed or corrupted.\\n\\n#### Solutions\\n\\n**A. Verify stream format**\\n```bash\\n# Test directly\\ncortex -p \\\"test\\\" --output-format stream-json\\n```\\n\\n**B. Update parser**\\nIf Cortex output format changed, update `scripts/execute_cortex.py` JSON parsing.\\n\\n**C. Check for errors in stderr**\\nCortex may output errors to stderr that interfere with stdout parsing.\\n\\n---\\n\\n### 10. Rate Limiting\\n\\n#### Symptom\\n```\\nError: Rate limit exceeded\\nError: Too many requests\\n```\\n\\n#### Explanation\\nCortex Code routes through Snowflake Cortex AI, which has rate limits.\\n\\n#### Solutions\\n\\n**A. Check Snowflake quotas**\\n```sql\\n-- Query Snowflake to check usage\\nSELECT * FROM SNOWFLAKE.ACCOUNT_USAGE.QUERY_HISTORY\\nWHERE QUERY_TEXT LIKE '%CORTEX%'\\nORDER BY START_TIME DESC\\nLIMIT 100;\\n```\\n\\n**B. Implement backoff**\\nAdd retry logic with exponential backoff in `scripts/execute_cortex.py`.\\n\\n**C. Reduce frequency**\\nSpace out Cortex calls, batch operations where possible.\\n\\n---\\n\\n## Advanced Debugging\\n\\n### Enable Verbose Logging\\n\\nAdd logging to scripts:\\n```python\\nimport logging\\nlogging.basicConfig(level=logging.DEBUG)\\n```\\n\\n### Trace Execution Flow\\n\\n```bash\\n# Enable Python tracing\\npython -m trace --trace ~/.claude/skills/cortex-code/scripts/route_request.py \\\\\\n  --prompt \\\"test\\\"\\n```\\n\\n### Monitor Cortex Sessions\\n\\n```bash\\n# Watch session files in real-time\\nwatch -n 1 'ls -lt ~/.local/share/cortex/sessions/*.jsonl | head -5'\\n\\n# Tail latest session\\ntail -f $(ls -t ~/.local/share/cortex/sessions/*.jsonl | head -1)\\n```\\n\\n### Test Integration\\n\\nCreate test script:\\n```bash\\n#!/bin/bash\\necho \\\"Testing Cortex integration...\\\"\\n\\n# Test 1: Discovery\\npython ~/.claude/skills/cortex-code/scripts/discover_cortex.py\\n\\n# Test 2: Routing\\npython ~/.claude/skills/cortex-code/scripts/route_request.py \\\\\\n  --prompt \\\"Show Snowflake tables\\\"\\n\\n# Test 3: Tool prediction\\npython ~/.claude/skills/cortex-code/scripts/predict_tools.py \\\\\\n  --prompt \\\"Check data quality\\\"\\n\\n# Test 4: Session reading\\npython ~/.claude/skills/cortex-code/scripts/read_cortex_sessions.py\\n\\necho \\\"All tests completed\\\"\\n```\\n\\n---\\n\\n## Getting Help\\n\\n1. **Check logs**: Look in `/tmp/` for any skill-related logs\\n2. **Test components**: Run scripts individually to isolate issues\\n3. **Verify setup**: Ensure both Claude Code and Cortex Code are properly configured\\n4. **Review recent changes**: Did Cortex Code update? Check for breaking changes\\n5. **Community**: Reach out to Claude Code or Snowflake communities\\n\\n---\\n\\n## Prevention\\n\\n### Best Practices\\n\\n1. **Regular cache refresh**: Start new Claude sessions periodically to refresh capabilities\\n2. **Monitor Cortex updates**: Watch for Cortex Code CLI updates that may change behavior\\n3. **Log routing decisions**: Keep track of what works and what doesn't\\n4. **Test after changes**: Run integration tests after modifying routing logic\\n5. **Document customizations**: Note any custom patterns added to routing\\n\\n### Maintenance Schedule\\n\\n- **Daily**: Check if skill is triggering correctly\\n- **Weekly**: Review routing accuracy, update patterns if needed\\n- **Monthly**: Refresh capabilities cache, check for Cortex updates\\n- **Quarterly**: Review and clean up Cortex session files if they grow too large\\n\", \"type\": \"text\"}]
+# Extended Troubleshooting Guide
+
+## Common Issues and Solutions
+
+### 1. Skill Not Triggering
+
+#### Symptom
+Cortex Code skill doesn't activate when asking Snowflake questions.
+
+#### Diagnosis
+```bash
+# Check if skill is loaded
+ls -la ~/.claude/skills/cortex-code/
+
+# Test routing logic
+python ~/.claude/skills/cortex-code/scripts/route_request.py \
+  --prompt "Show me Snowflake tables"
+```
+
+#### Solutions
+
+**A. Skill not loaded**
+```bash
+# Ensure skill directory exists
+mkdir -p ~/.claude/skills/cortex-code
+
+# Copy skill files
+cp -r cortex-code ~/.claude/skills/
+
+# Restart Claude Code
+```
+
+**B. Description too vague**
+Edit `~/.claude/skills/cortex-code/SKILL.md` frontmatter:
+```yaml
+description: Routes Snowflake-related operations... [ADD MORE TRIGGER KEYWORDS]
+```
+
+**C. Routing logic issue**
+Add keywords to `scripts/route_request.py`:
+```python
+SNOWFLAKE_INDICATORS = [
+    "snowflake", "cortex", "warehouse",
+    # Add your specific terms
+    "your_warehouse_name",
+    "your_database_name"
+]
+```
+
+---
+
+### 2. Cortex CLI Not Found
+
+#### Symptom
+```
+Error: cortex: command not found
+```
+
+#### Diagnosis
+```bash
+which cortex
+echo $PATH
+```
+
+#### Solutions
+
+**A. Cortex not installed**
+Check Snowflake documentation for Cortex Code installation.
+
+**B. Cortex not in PATH**
+```bash
+# Find Cortex installation
+find ~ -name "cortex" -type f 2>/dev/null
+
+# Add to PATH (adjust path as needed)
+export PATH="$HOME/.snowflake/cortex/bin:$PATH"
+
+# Make permanent (add to ~/.zshrc or ~/.bashrc)
+echo 'export PATH="$HOME/.snowflake/cortex/bin:$PATH"' >> ~/.zshrc
+```
+
+**C. Verify installation**
+```bash
+cortex --version
+cortex connections list
+```
+
+---
+
+### 3. Permission Denied Errors
+
+#### Symptom
+```
+Permission denied: Tool denied: headless mode requires --allowed-tools
+```
+
+#### Explanation
+This is EXPECTED behavior. Organization policy blocks `--dangerously-allow-all-tool-calls`, so we use `--allowed-tools` explicitly.
+
+#### Diagnosis
+```bash
+# Check predicted tools
+python ~/.claude/skills/cortex-code/scripts/predict_tools.py \
+  --prompt "Your query here"
+```
+
+#### Solutions
+
+**A. Tool prediction incomplete**
+Update `scripts/predict_tools.py` to include missing tool:
+```python
+BASE_SNOWFLAKE_TOOLS = [
+    "snowflake_sql_execute",
+    "bash",
+    "read",
+    # Add missing tool
+    "write"
+]
+```
+
+**B. Runtime tool addition**
+The skill should handle this automatically by:
+1. Detecting permission denial
+2. Asking user for approval
+3. Re-invoking with updated tools
+
+If this fails, check `scripts/execute_cortex.py` for proper permission handling.
+
+---
+
+### 4. Snowflake Connection Errors
+
+#### Symptom
+```
+Error: Connection refused
+Error: No connection configured
+```
+
+#### Diagnosis
+```bash
+# Check connections
+cortex connections list
+
+# Check settings
+cat ~/.snowflake/cortex/settings.json
+```
+
+#### Solutions
+
+**A. No connection configured**
+```bash
+# Configure connection via Cortex
+cortex config set cortexAgentConnectionName "your_connection_name"
+```
+
+**B. Connection not active**
+Verify connection in Snowflake:
+```sql
+-- Test connection
+SELECT CURRENT_USER();
+```
+
+**C. Authentication expired**
+```bash
+# Re-authenticate
+# (Method depends on your auth setup: SSO, username/password, key-pair)
+```
+
+---
+
+### 5. Capabilities Cache Stale
+
+#### Symptom
+Skill doesn't recognize new Cortex skills or features.
+
+#### Diagnosis
+```bash
+# Check cache age
+ls -la /tmp/cortex-capabilities.json
+
+# View cached capabilities
+cat /tmp/cortex-capabilities.json | jq
+```
+
+#### Solutions
+
+**A. Manual refresh**
+```bash
+python ~/.claude/skills/cortex-code/scripts/discover_cortex.py
+```
+
+**B. Automatic refresh**
+Capabilities are cached per Claude session. Start new session to refresh.
+
+**C. Force discovery**
+Delete cache and re-run:
+```bash
+rm /tmp/cortex-capabilities.json
+python ~/.claude/skills/cortex-code/scripts/discover_cortex.py
+```
+
+---
+
+### 6. Context Enrichment Too Large
+
+#### Symptom
+```
+Error: Prompt too long
+Error: Token limit exceeded
+```
+
+#### Diagnosis
+```bash
+# Check recent session sizes
+python ~/.claude/skills/cortex-code/scripts/read_cortex_sessions.py --verbose
+```
+
+#### Solutions
+
+**A. Reduce session limit**
+Edit `scripts/read_cortex_sessions.py`:
+```python
+def find_recent_sessions(limit=1):  # Reduced from 3
+```
+
+**B. Summarize context**
+Instead of full session content, extract key points only.
+
+**C. Filter relevant context**
+Only include Snowflake-related exchanges, skip others.
+
+---
+
+### 7. Routing Ambiguity
+
+#### Symptom
+Requests routed incorrectly (Snowflake query goes to Claude, or vice versa).
+
+#### Diagnosis
+```bash
+# Test routing
+python ~/.claude/skills/cortex-code/scripts/route_request.py \
+  --prompt "Show me table data"
+
+# Check confidence
+# Low confidence (<70%) indicates ambiguity
+```
+
+#### Solutions
+
+**A. Add explicit context**
+User should mention "Snowflake" or "Cortex" explicitly:
+- ✘ "Show me table data" (ambiguous)
+- ✔ "Show me Snowflake table data" (clear)
+
+**B. Improve routing logic**
+Add context-aware checks in `scripts/route_request.py`:
+```python
+def analyze_with_llm_logic(prompt, capabilities, recent_context=None):
+    # Include recent conversation context
+    if recent_context and "snowflake" in recent_context.lower():
+        snowflake_score += 2
+```
+
+**C. Ask user**
+For low confidence (<70%), prompt user:
+```python
+if confidence < 0.7:
+    # Ask user: "Are you referring to Snowflake?"
+```
+
+---
+
+### 8. Script Execution Errors
+
+#### Symptom
+```
+Permission denied: scripts/discover_cortex.py
+```
+
+#### Diagnosis
+```bash
+ls -la ~/.claude/skills/cortex-code/scripts/
+```
+
+#### Solutions
+
+**A. Make scripts executable**
+```bash
+chmod +x ~/.claude/skills/cortex-code/scripts/*.py
+```
+
+**B. Check Python path**
+```bash
+which python3
+
+# Scripts use #!/usr/bin/env python3
+# Ensure python3 is in PATH
+```
+
+**C. Dependencies**
+```bash
+# Ensure standard library modules are available
+python3 -c "import json, subprocess, sys, pathlib"
+```
+
+---
+
+### 9. Streaming Output Errors
+
+#### Symptom
+```
+Error parsing line: ...
+Warning: Failed to parse JSON
+```
+
+#### Diagnosis
+Cortex output format changed or corrupted.
+
+#### Solutions
+
+**A. Verify stream format**
+```bash
+# Test directly
+cortex -p "test" --output-format stream-json
+```
+
+**B. Update parser**
+If Cortex output format changed, update `scripts/execute_cortex.py` JSON parsing.
+
+**C. Check for errors in stderr**
+Cortex may output errors to stderr that interfere with stdout parsing.
+
+---
+
+### 10. Rate Limiting
+
+#### Symptom
+```
+Error: Rate limit exceeded
+Error: Too many requests
+```
+
+#### Explanation
+Cortex Code routes through Snowflake Cortex AI, which has rate limits.
+
+#### Solutions
+
+**A. Check Snowflake quotas**
+```sql
+-- Query Snowflake to check usage
+SELECT * FROM SNOWFLAKE.ACCOUNT_USAGE.QUERY_HISTORY
+WHERE QUERY_TEXT LIKE '%CORTEX%'
+ORDER BY START_TIME DESC
+LIMIT 100;
+```
+
+**B. Implement backoff**
+Add retry logic with exponential backoff in `scripts/execute_cortex.py`.
+
+**C. Reduce frequency**
+Space out Cortex calls, batch operations where possible.
+
+---
+
+## Advanced Debugging
+
+### Enable Verbose Logging
+
+Add logging to scripts:
+```python
+import logging
+logging.basicConfig(level=logging.DEBUG)
+```
+
+### Trace Execution Flow
+
+```bash
+# Enable Python tracing
+python -m trace --trace ~/.claude/skills/cortex-code/scripts/route_request.py \
+  --prompt "test"
+```
+
+### Monitor Cortex Sessions
+
+```bash
+# Watch session files in real-time
+watch -n 1 'ls -lt ~/.local/share/cortex/sessions/*.jsonl | head -5'
+
+# Tail latest session
+tail -f $(ls -t ~/.local/share/cortex/sessions/*.jsonl | head -1)
+```
+
+### Test Integration
+
+Create test script:
+```bash
+#!/bin/bash
+echo "Testing Cortex integration..."
+
+# Test 1: Discovery
+python ~/.claude/skills/cortex-code/scripts/discover_cortex.py
+
+# Test 2: Routing
+python ~/.claude/skills/cortex-code/scripts/route_request.py \
+  --prompt "Show Snowflake tables"
+
+# Test 3: Tool prediction
+python ~/.claude/skills/cortex-code/scripts/predict_tools.py \
+  --prompt "Check data quality"
+
+# Test 4: Session reading
+python ~/.claude/skills/cortex-code/scripts/read_cortex_sessions.py
+
+echo "All tests completed"
+```
+
+---
+
+## Getting Help
+
+1. **Check logs**: Look in `/tmp/` for any skill-related logs
+2. **Test components**: Run scripts individually to isolate issues
+3. **Verify setup**: Ensure both Claude Code and Cortex Code are properly configured
+4. **Review recent changes**: Did Cortex Code update? Check for breaking changes
+5. **Community**: Reach out to Claude Code or Snowflake communities
+
+---
+
+## Prevention
+
+### Best Practices
+
+1. **Regular cache refresh**: Start new Claude sessions periodically to refresh capabilities
+2. **Monitor Cortex updates**: Watch for Cortex Code CLI updates that may change behavior
+3. **Log routing decisions**: Keep track of what works and what doesn't
+4. **Test after changes**: Run integration tests after modifying routing logic
+5. **Document customizations**: Note any custom patterns added to routing
+
+### Maintenance Schedule
+
+- **Daily**: Check if skill is triggering correctly
+- **Weekly**: Review routing accuracy, update patterns if needed
+- **Monthly**: Refresh capabilities cache, check for Cortex updates
+- **Quarterly**: Review and clean up Cortex session files if they grow too large
