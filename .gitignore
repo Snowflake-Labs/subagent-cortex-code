@@ -16,6 +16,17 @@ build/
 
 # Cortex cache
 /tmp/cortex-capabilities.json
+~/.cache/cortex-skill/
+
+# User configuration (local settings)
+config.yaml
+
+# Generated/temporary directories
+semantic_view_*/
+DB_STOCK_*/
+
+# Audit logs (may contain sensitive data)
+audit.log
 
 # IDE
 .vscode/
