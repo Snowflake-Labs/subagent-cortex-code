@@ -8,6 +8,11 @@ import json
 import sys
 import argparse
 from pathlib import Path
+from typing import Optional, Dict, Any
+
+# Add parent directory to path for security imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from security.config_manager import ConfigManager
 
 
 # Snowflake/Cortex indicators
@@ -104,19 +109,102 @@ def analyze_with_llm_logic(prompt, capabilities):
         return "claude", confidence
 
 
+def check_credential_allowlist(
+    prompt: str,
+    config_path: Optional[Path] = None,
+    org_policy_path: Optional[Path] = None
+) -> Dict[str, Any]:
+    """
+    Check if prompt contains credential file paths from the allowlist.
+
+    This function runs before routing analysis to block prompts that reference
+    credential files, regardless of whether they would be routed to Cortex or Claude.
+
+    Args:
+        prompt: User prompt to check
+        config_path: Path to user config file (optional)
+        org_policy_path: Path to organization policy file (optional)
+
+    Returns:
+        Dict with blocking decision:
+        - blocked: True if credential detected, False otherwise
+        - route: "blocked" if blocked, None otherwise
+        - confidence: 1.0 if blocked (100% confident in blocking)
+        - reason: Human-readable reason for blocking
+        - pattern_matched: The allowlist pattern that matched
+    """
+    # Initialize ConfigManager with optional config paths
+    config_manager = ConfigManager(
+        config_path=config_path,
+        org_policy_path=org_policy_path
+    )
+
+    # Load credential allowlist
+    credential_allowlist = config_manager.get("security.credential_file_allowlist")
+
+    # Check each pattern against the prompt (case-insensitive)
+    prompt_lower = prompt.lower()
+
+    for pattern in credential_allowlist:
+        # Strip wildcards from pattern: ~/ **/ * → base pattern
+        pattern_check = pattern.replace('~/', '').replace('**/', '').replace('*', '')
+
+        # Strip trailing slashes
+        pattern_check = pattern_check.rstrip('/')
+
+        # Skip empty patterns (patterns that are only wildcards)
+        if not pattern_check:
+            continue
+
+        # Check if pattern is in prompt (case-insensitive)
+        if pattern_check in prompt_lower:
+            return {
+                "blocked": True,
+                "route": "blocked",
+                "confidence": 1.0,
+                "reason": f"Prompt contains credential file path from allowlist",
+                "pattern_matched": pattern
+            }
+
+    # No credentials detected
+    return {
+        "blocked": False
+    }
+
+
 def main():
     """Main routing function."""
     parser = argparse.ArgumentParser(description="Route request to Cortex or Claude Code")
     parser.add_argument("--prompt", required=True, help="User prompt to analyze")
+    parser.add_argument("--config", help="Path to user config file")
+    parser.add_argument("--org-policy", help="Path to organization policy file")
     args = parser.parse_args()
 
-    # Load Cortex capabilities
+    # Step 1: Check credential allowlist BEFORE routing
+    config_path = Path(args.config) if args.config else None
+    org_policy_path = Path(args.org_policy) if args.org_policy else None
+
+    credential_check = check_credential_allowlist(
+        args.prompt,
+        config_path,
+        org_policy_path
+    )
+
+    # If blocked by credential check, return immediately
+    if credential_check.get("blocked"):
+        print(json.dumps(credential_check, indent=2))
+        print(f"\n⛔ BLOCKED: Credential file detected", file=sys.stderr)
+        print(f"   Pattern: {credential_check['pattern_matched']}", file=sys.stderr)
+        print(f"   Reason: {credential_check['reason']}", file=sys.stderr)
+        sys.exit(0)
+
+    # Step 2: Load Cortex capabilities
     capabilities = load_cortex_capabilities()
 
-    # Analyze prompt
+    # Step 3: Analyze prompt for routing
     route, confidence = analyze_with_llm_logic(args.prompt, capabilities)
 
-    # Output decision
+    # Step 4: Output decision
     result = {
         "route": route,
         "confidence": confidence,
@@ -128,8 +216,8 @@ def main():
     print(f"\n→ Route to: {route.upper()}", file=sys.stderr)
     print(f"   Confidence: {confidence:.2%}", file=sys.stderr)
 
-    return 0
+    sys.exit(0)
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()
