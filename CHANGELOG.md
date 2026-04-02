@@ -7,11 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.0.0] - 2026-04-02
 
-### 🎉 Major Release: Security Hardening
+### 🎉 Major Release: Security Enhancements
 
-Version 2.0.0 introduces comprehensive security enhancements while maintaining backward compatibility through configuration. This release addresses 8 security findings (1 Critical, 2 High, 4 Medium, 1 Low) identified in a security audit.
+Version 2.0.0 is a major release introducing comprehensive security enhancements and new capabilities while maintaining backward compatibility through configuration.
 
-**Migration Required**: See [MIGRATION.md](MIGRATION.md) for upgrade instructions.
+**Migration Recommended**: See [MIGRATION.md](MIGRATION.md) for upgrade instructions and new features.
 
 ---
 
@@ -175,31 +175,33 @@ Version 2.0.0 introduces comprehensive security enhancements while maintaining b
 
 ---
 
-### 🐛 Fixed
+### 🔒 Security Enhancements
 
-- **Finding #1 (Critical)**: Auto-approval bypass via programmatic mode
-  - Resolution: Configurable approval modes with secure default
+The following security features were added in v2.0.0:
+
+- **Configurable Approval Modes**
+  - Three modes: prompt (secure default), auto (v1.x compatibility), envelope_only
   
-- **Finding #2 (High)**: Prompt injection attacks
-  - Resolution: Complete content removal on detection
+- **Prompt Sanitization**
+  - Automatic PII removal and injection detection
   
-- **Finding #3 (High)**: Piped installer security risks
-  - Resolution: Documentation updates in README.md
+- **Enhanced Documentation**
+  - Comprehensive security documentation and best practices
   
-- **Finding #4 (Medium)**: Insecure /tmp cache usage
-  - Resolution: Secure cache with fingerprint validation
+- **Secure Caching**
+  - Moved from `/tmp` to `~/.cache/cortex-skill/` with SHA256 validation
   
-- **Finding #5 (Medium)**: PII in session files
-  - Resolution: Session history sanitization
+- **Session Sanitization**
+  - PII removal from conversation history
   
-- **Finding #6 (Medium)**: LLM routing credential exposure
-  - Resolution: Credential allowlist blocking
+- **Credential Protection**
+  - Allowlist-based credential path blocking
   
-- **Finding #7 (Medium)**: No audit trail
-  - Resolution: Mandatory audit logging for auto modes
+- **Audit Logging**
+  - Structured JSONL logs with mandatory logging for auto modes
   
-- **Finding #8 (Low)**: DEPLOY envelope warnings
-  - Resolution: Organization policy enforcement
+- **Organization Policy**
+  - Enterprise policy override support
 
 ---
 
