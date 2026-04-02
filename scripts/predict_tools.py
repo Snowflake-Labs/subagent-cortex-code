@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
 Predicts which Cortex tools will be needed based on the user prompt and capabilities.
+Enhanced with confidence scoring for approval handler.
 """
 
 import json
@@ -9,26 +10,26 @@ import argparse
 from pathlib import Path
 
 
-# Tool prediction mappings
+# Tool prediction mappings with weighted patterns
 TOOL_PATTERNS = {
     "snowflake_sql_execute": [
         "select", "insert", "update", "delete", "query", "sql",
-        "table", "database", "data"
+        "table", "database", "data", "snowflake"
     ],
     "bash": [
-        "run", "execute", "command", "script", "install"
+        "run", "execute", "command", "script", "install", "shell"
     ],
     "read": [
-        "read", "show", "display", "view", "check", "inspect"
+        "read", "show", "display", "view", "check", "inspect", "examine"
     ],
     "write": [
-        "create", "write", "generate", "save"
+        "create", "write", "generate", "save", "output", "file"
     ],
     "glob": [
-        "find", "search", "list", "files", "directory"
+        "find", "search", "list", "files", "directory", "locate"
     ],
     "grep": [
-        "search", "find", "pattern", "match"
+        "search", "find", "pattern", "match", "contains"
     ]
 }
 
@@ -48,33 +49,88 @@ def load_capabilities():
         return json.load(f)
 
 
-def predict_tools(prompt, capabilities):
-    """Predict required tools based on prompt analysis."""
+def predict_tools(prompt, envelope=None):
+    """
+    Predict required tools based on prompt analysis with confidence scoring.
+
+    Args:
+        prompt: User prompt to analyze
+        envelope: Optional envelope dict with capabilities
+
+    Returns:
+        dict with:
+            - tools: list of predicted tool names
+            - confidence: float 0-1 indicating prediction confidence
+            - reasoning: str explaining the prediction
+    """
     prompt_lower = prompt.lower()
     predicted = set(BASE_SNOWFLAKE_TOOLS)
+    matched_patterns = []
 
-    # Check each tool pattern
+    # Check each tool pattern and track matches
     for tool, patterns in TOOL_PATTERNS.items():
+        tool_matches = []
         for pattern in patterns:
             if pattern in prompt_lower:
-                predicted.add(tool)
-                break
+                tool_matches.append(pattern)
 
-    # Check if specific skills might need additional tools
-    for skill_name, skill_info in capabilities.items():
-        description = skill_info.get("description", "").lower()
+        if tool_matches:
+            predicted.add(tool)
+            matched_patterns.append(f"{tool}: {', '.join(tool_matches)}")
 
-        # If skill description matches prompt, assume it needs its common tools
-        if any(word in description for word in prompt_lower.split()):
-            # Data quality skills typically need more tools
-            if "quality" in skill_name or "governance" in skill_name:
-                predicted.update(["glob", "grep", "write"])
+    # Calculate confidence based on pattern matches
+    total_words = len(prompt_lower.split())
+    pattern_match_count = len(matched_patterns)
 
-            # ML skills need bash for model operations
-            if "ml" in skill_name or "machine" in skill_name or "forecast" in skill_name:
-                predicted.add("bash")
+    # Base confidence on match density
+    if total_words == 0:
+        confidence = 0.5
+    elif pattern_match_count == 0:
+        # Only base tools predicted
+        confidence = 0.5
+    else:
+        # More matches relative to prompt length = higher confidence
+        confidence = min(0.9, 0.5 + (pattern_match_count / max(total_words / 5, 1)) * 0.4)
 
-    return list(predicted)
+    # Adjust confidence based on prompt clarity
+    if total_words < 5:
+        confidence *= 0.8  # Short prompts are less clear
+    elif total_words > 20:
+        confidence *= 0.95  # Very detailed prompts slightly less confident
+
+    # Check capabilities if provided in envelope
+    if envelope and "capabilities" in envelope:
+        capabilities = envelope["capabilities"]
+        for skill_name, skill_info in capabilities.items():
+            description = skill_info.get("description", "").lower()
+
+            # If skill description matches prompt, boost confidence
+            if any(word in description for word in prompt_lower.split()):
+                confidence = min(1.0, confidence + 0.1)
+
+                # Data quality skills typically need more tools
+                if "quality" in skill_name or "governance" in skill_name:
+                    predicted.update(["glob", "grep", "write"])
+                    matched_patterns.append(f"skill_match: {skill_name}")
+
+                # ML skills need bash for model operations
+                if "ml" in skill_name or "machine" in skill_name or "forecast" in skill_name:
+                    predicted.add("bash")
+                    matched_patterns.append(f"skill_match: {skill_name}")
+
+    # Generate reasoning
+    if matched_patterns:
+        reasoning = f"Matched {len(matched_patterns)} patterns: {'; '.join(matched_patterns[:3])}"
+        if len(matched_patterns) > 3:
+            reasoning += f" and {len(matched_patterns) - 3} more"
+    else:
+        reasoning = "Using base Snowflake tools only - no specific patterns matched"
+
+    return {
+        "tools": sorted(list(predicted)),
+        "confidence": round(confidence, 2),
+        "reasoning": reasoning
+    }
 
 
 def main():
@@ -86,19 +142,18 @@ def main():
 
     # Load capabilities
     capabilities = load_capabilities()
+    envelope = {"capabilities": capabilities} if capabilities else None
 
-    # Predict tools
-    tools = predict_tools(args.prompt, capabilities)
+    # Predict tools with confidence
+    result = predict_tools(args.prompt, envelope)
 
     # Output as JSON
-    result = {
-        "predicted_tools": tools,
-        "count": len(tools)
-    }
-
     print(json.dumps(result, indent=2))
 
-    print(f"\nPredicted {len(tools)} tools: {', '.join(tools)}", file=sys.stderr)
+    # Summary to stderr
+    print(f"\nPredicted {len(result['tools'])} tools with {result['confidence']:.0%} confidence:", file=sys.stderr)
+    print(f"  Tools: {', '.join(result['tools'])}", file=sys.stderr)
+    print(f"  Reasoning: {result['reasoning']}", file=sys.stderr)
 
     return 0
 
