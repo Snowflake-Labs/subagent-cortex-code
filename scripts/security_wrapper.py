@@ -15,6 +15,7 @@ This is the main entry point for secure Cortex execution.
 import argparse
 import json
 import sys
+import os
 from pathlib import Path
 from typing import Optional, Dict, Any
 
@@ -26,6 +27,10 @@ from security.audit_logger import AuditLogger
 from security.cache_manager import CacheManager
 from security.prompt_sanitizer import PromptSanitizer
 from security.approval_handler import ApprovalHandler
+
+# Import routing functions
+sys.path.insert(0, str(Path(__file__).parent))
+from route_request import analyze_with_llm_logic, load_cortex_capabilities
 
 
 def execute_with_security(
@@ -93,18 +98,39 @@ def execute_with_security(
     if sanitize_enabled:
         sanitized_prompt = prompt_sanitizer.sanitize(prompt)
 
-    # Step 4: Determine approval mode
+    # Step 4: Check credential file allowlist (on original prompt)
+    credential_allowlist = config_manager.get("security.credential_file_allowlist")
+    for pattern in credential_allowlist:
+        # Simple pattern matching - strip wildcards and check for contains
+        pattern_check = pattern.replace('~/', '').replace('**/', '').replace('*', '')
+        if pattern_check and pattern_check in prompt.lower():
+            return {
+                "status": "blocked",
+                "reason": "Prompt contains credential file path from allowlist",
+                "pattern_matched": pattern,
+                "message": "Cannot route prompts containing credential file paths for security"
+            }
+
+    # Step 5: Determine routing (cortex vs claude) on sanitized prompt
+    capabilities = load_cortex_capabilities()
+    route_decision, route_confidence = analyze_with_llm_logic(sanitized_prompt, capabilities)
+
+    # Step 6: Determine approval mode
     # In prompt mode, user must approve tools
     # In auto mode, tools are auto-approved
     # In deny mode, execution is blocked
 
-    # Step 5: Dry-run mode - return initialization status
+    # Step 7: Dry-run mode - return initialization status
     if dry_run:
         return {
             "status": "initialized",
             "dry_run": True,
             "prompt": prompt,
             "sanitized_prompt": sanitized_prompt,
+            "routing": {
+                "decision": route_decision,
+                "confidence": route_confidence
+            },
             "config": {
                 "approval_mode": approval_mode,
                 "audit_log_path": str(audit_log_path),
@@ -119,7 +145,7 @@ def execute_with_security(
             "approval_handler": str(type(approval_handler).__name__)
         }
 
-    # Step 6: Full execution flow (TODO: Week 2)
+    # Step 8: Full execution flow (TODO: Week 2)
     # This will include:
     # - Tool prediction with approval handler
     # - User approval flow (if prompt mode)

@@ -212,3 +212,98 @@ class TestSecurityWrapperErrorHandling:
         # Should fall back to defaults
         assert result["status"] == "initialized"
         assert "config" in result
+
+
+class TestSecurityWrapperRouting:
+    """Test security wrapper routing integration."""
+
+    def test_security_wrapper_routing_to_cortex(self, temp_dir):
+        """Test that Snowflake prompts route to cortex."""
+        config_path = temp_dir / "config.yaml"
+        config_path.write_text("""
+security:
+  approval_mode: auto
+  audit_log_path: {}/audit.log
+  cache_dir: {}/.cache
+""".format(temp_dir, temp_dir))
+
+        # Snowflake-specific prompt
+        result = execute_with_security(
+            prompt="Query Snowflake database for sales data",
+            config_path=str(config_path),
+            dry_run=True
+        )
+
+        # Verify routing to cortex
+        assert result["status"] == "initialized"
+        assert "routing" in result
+        assert result["routing"]["decision"] == "cortex"
+        assert result["routing"]["confidence"] > 0.5
+
+    def test_security_wrapper_routing_to_claude(self, temp_dir):
+        """Test that non-Snowflake prompts route to claude."""
+        config_path = temp_dir / "config.yaml"
+        config_path.write_text("""
+security:
+  approval_mode: auto
+  audit_log_path: {}/audit.log
+  cache_dir: {}/.cache
+""".format(temp_dir, temp_dir))
+
+        # Local file operation prompt
+        result = execute_with_security(
+            prompt="Read local file config.json and parse it",
+            config_path=str(config_path),
+            dry_run=True
+        )
+
+        # Verify routing to claude
+        assert result["status"] == "initialized"
+        assert "routing" in result
+        assert result["routing"]["decision"] == "claude"
+
+    def test_security_wrapper_blocks_credential_files(self, temp_dir):
+        """Test that prompts with credential files are blocked."""
+        config_path = temp_dir / "config.yaml"
+        config_path.write_text("""
+security:
+  approval_mode: auto
+  audit_log_path: {}/audit.log
+  cache_dir: {}/.cache
+  credential_file_allowlist:
+    - "~/.ssh/*"
+    - "**/credentials.json"
+    - "**/.env"
+""".format(temp_dir, temp_dir))
+
+        # Test SSH credential file
+        result = execute_with_security(
+            prompt="Read ~/.ssh/id_rsa file and analyze it",
+            config_path=str(config_path),
+            dry_run=True
+        )
+
+        # Verify blocking
+        assert result["status"] == "blocked"
+        assert "credential file" in result["reason"].lower()
+        assert "pattern_matched" in result
+
+        # Test credentials.json
+        result2 = execute_with_security(
+            prompt="Parse credentials.json for database connection",
+            config_path=str(config_path),
+            dry_run=True
+        )
+
+        assert result2["status"] == "blocked"
+        assert "credential file" in result2["reason"].lower()
+
+        # Test .env file
+        result3 = execute_with_security(
+            prompt="Check .env file for API keys",
+            config_path=str(config_path),
+            dry_run=True
+        )
+
+        assert result3["status"] == "blocked"
+        assert "credential file" in result3["reason"].lower()
