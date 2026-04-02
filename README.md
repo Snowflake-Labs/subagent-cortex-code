@@ -517,6 +517,7 @@ Contributions are welcome! Please:
 - [SECURITY.md](SECURITY.md) - Security policy, threat model, and features
 - [SECURITY_GUIDE.md](SECURITY_GUIDE.md) - Best practices for personal/team/enterprise
 - [MIGRATION.md](MIGRATION.md) - Upgrade guide from v1.x to v2.0.0
+- [CHANGELOG.md](CHANGELOG.md) - Version history and release notes
 - [Cortex CLI Reference](references/cortex-cli-reference.md)
 - [Routing Examples](references/routing-examples.md)
 - [Troubleshooting Guide](references/troubleshooting-guide.md)
