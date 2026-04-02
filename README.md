@@ -9,9 +9,11 @@ The Cortex Code Integration Skill bridges Claude Code and Cortex Code CLI, allow
 **Key Features:**
 - 🎯 **Smart Routing**: LLM-based semantic routing automatically detects Snowflake operations
 - 🔒 **Security Envelopes**: Configurable permission models (RO, RW, RESEARCH, DEPLOY, NONE)
-- 🔄 **Programmatic Mode**: Auto-approval of tool calls via `--input-format stream-json`
+- 🛡️ **Approval Modes**: Three security modes (prompt/auto/envelope_only) for different trust levels
+- 🔐 **Prompt Sanitization**: Automatic PII removal and injection attempt detection
 - 📊 **Context Enrichment**: Passes conversation history to Cortex for informed execution
-- 🛡️ **Permission Surfacing**: All Cortex tool calls visible to user via Claude Code UI
+- 📝 **Audit Logging**: Structured JSONL logs for compliance and monitoring
+- 🏢 **Enterprise Ready**: Organization policy override for centralized security management
 
 ## Background
 
@@ -20,6 +22,41 @@ AI coding assistants excel as generalists, but domain expertise matters. Ask Cla
 Snowflake has that specialist: **Cortex Code**, an AI agent trained on Snowflake's entire technical stack. It knows the quirks of Snowflake's metadata views, when to use dynamic tables versus streams, and can debug semantic view configurations from institutional knowledge.
 
 This skill bridges both agents using a **multi-agent harness pattern**: Claude Code acts as the orchestrator (managing conversation, routing, general tasks), while Cortex Code runs as a specialized agent (invoked only for Snowflake operations, executing autonomously, streaming results back). From the user's perspective, it's one conversation. Behind the scenes, two specialists collaborate — each in their domain of expertise.
+
+## Security Features (v2.0.0)
+
+**⚠️ IMPORTANT: v1.x users, please see [MIGRATION.md](MIGRATION.md) for upgrade instructions.**
+
+Version 2.0.0 introduces a comprehensive security architecture to protect against unauthorized data access, prompt injection attacks, and credential exposure.
+
+### Three Approval Modes
+
+Choose the security level that matches your needs:
+
+| Mode | Security | Use Case | User Experience |
+|------|----------|----------|-----------------|
+| **prompt** (default) | High | Interactive sessions, production | Approval prompt before execution |
+| **auto** | Medium | Automated workflows, v1.x compatibility | Auto-execute with audit logging |
+| **envelope_only** | Medium | Trusted environments | Auto-execute, faster (no tool prediction) |
+
+**Configure in** `~/.claude/skills/cortex-code/config.yaml`:
+```yaml
+security:
+  approval_mode: "prompt"  # or "auto" or "envelope_only"
+```
+
+### Built-in Security Protections
+
+1. **Prompt Sanitization**: Automatic removal of PII (credit cards, SSN, emails) and injection attempts
+2. **Credential Blocking**: Prevents routing when paths like `~/.ssh/`, `.env`, or `credentials.json` are detected
+3. **Secure Caching**: Replaces insecure `/tmp` with `~/.cache/cortex-skill/` (SHA256 integrity validation)
+4. **Audit Logging**: Structured JSONL logs (mandatory for auto/envelope_only modes)
+5. **Organization Policy**: Enterprise admins can enforce security settings via `~/.snowflake/cortex/claude-skill-policy.yaml`
+
+**Learn more:**
+- [SECURITY.md](SECURITY.md) - Complete security policy and threat model
+- [SECURITY_GUIDE.md](SECURITY_GUIDE.md) - Best practices for personal/team/enterprise deployments
+- [MIGRATION.md](MIGRATION.md) - Upgrade guide from v1.x
 
 ## Architecture
 
@@ -112,7 +149,18 @@ The skill scripts use Python standard library only (no external dependencies req
    # Should show "cortex-code" in the list
    ```
 
-3. The skill will automatically load when you mention Snowflake-related tasks.
+3. **(Optional) Configure security settings:**
+   ```bash
+   # Copy example configuration
+   cp ~/.claude/skills/cortex-code/config.yaml.example \
+      ~/.claude/skills/cortex-code/config.yaml
+   
+   # Edit as needed (default is secure "prompt" mode)
+   ```
+   
+   See [SECURITY_GUIDE.md](SECURITY_GUIDE.md) for configuration recommendations.
+
+4. The skill will automatically load when you mention Snowflake-related tasks.
 
 ## Usage
 
@@ -339,6 +387,49 @@ which cortex
 # If not found, check installation: ~/.snowflake/cortex/
 ```
 
+### Issue: Approval prompt behavior questions
+**Symptom:** Unexpected approval prompts or auto-approval behavior
+
+**Causes and Solutions:**
+1. **Check approval mode:**
+   ```bash
+   cat ~/.claude/skills/cortex-code/config.yaml | grep approval_mode
+   # prompt = shows approval prompts (default)
+   # auto = auto-approves all operations (v1.x behavior)
+   # envelope_only = auto-approves, faster (no tool prediction)
+   ```
+
+2. **Check organization policy override:**
+   ```bash
+   cat ~/.snowflake/cortex/claude-skill-policy.yaml 2>/dev/null
+   # Organization policy overrides user config
+   ```
+
+3. **Migration from v1.x:**
+   - v1.x auto-approved all operations
+   - v2.0.0 defaults to prompt mode for security
+   - To restore v1.x behavior: set `approval_mode: "auto"`
+   - See [MIGRATION.md](MIGRATION.md) for full upgrade guide
+
+### Issue: "Prompt contains credential file path"
+**Cause:** Prompt mentions paths like `~/.ssh/`, `.env`, etc. that match credential allowlist
+
+**Solution:**
+1. Remove credential references from prompt
+2. Or customize allowlist in config.yaml if false positive
+
+### Issue: PII removed from prompts
+**Symptom:** Emails, phone numbers replaced with placeholders
+
+**Cause:** Automatic sanitization enabled by default
+
+**Solution:**
+```yaml
+# Disable if needed (not recommended)
+security:
+  sanitize_conversation_history: false
+```
+
 ### Issue: "Permission denied" despite programmatic mode
 **Cause:** Tool is in the --disallowed-tools blocklist for current envelope
 
@@ -347,10 +438,15 @@ which cortex
 2. If operation is safe, switch to a less restrictive envelope
 3. Or use envelope="NONE" with custom --disallowed-tools list
 
-### Issue: Tools still requiring approval
-**Cause:** Missing `--input-format stream-json` flag
+### Issue: Tools still requiring approval (v1.x behavior)
+**Cause:** Using default `prompt` mode in v2.0.0
 
-**Solution:** Ensure both `--output-format stream-json` AND `--input-format stream-json` are present. The input format flag is what enables programmatic auto-approval mode.
+**Solution:** Configure `auto` mode for v1.x compatibility:
+```yaml
+security:
+  approval_mode: "auto"
+  audit_log_path: "~/.claude/skills/cortex-code/audit.log"  # mandatory
+```
 
 ### Issue: Routing sends Snowflake query to Claude Code
 **Cause:** Routing logic didn't detect Snowflake keywords
@@ -360,7 +456,19 @@ which cortex
 2. Review routing script logic in `scripts/route_request.py`
 3. Add more trigger patterns to routing context
 
-For more troubleshooting, see [troubleshooting-guide.md](references/troubleshooting-guide.md).
+### Issue: Audit log not created
+**Symptom:** No audit.log file despite auto/envelope_only mode
+
+**Solution:**
+```bash
+# Verify directory permissions
+chmod 700 ~/.claude/skills/cortex-code/
+
+# Check log path configuration
+cat ~/.claude/skills/cortex-code/config.yaml | grep audit_log_path
+```
+
+For more troubleshooting, see [troubleshooting-guide.md](references/troubleshooting-guide.md) and [MIGRATION.md](MIGRATION.md).
 
 ## Advanced Configuration
 
@@ -406,6 +514,9 @@ Contributions are welcome! Please:
 
 ## References
 
+- [SECURITY.md](SECURITY.md) - Security policy, threat model, and features
+- [SECURITY_GUIDE.md](SECURITY_GUIDE.md) - Best practices for personal/team/enterprise
+- [MIGRATION.md](MIGRATION.md) - Upgrade guide from v1.x to v2.0.0
 - [Cortex CLI Reference](references/cortex-cli-reference.md)
 - [Routing Examples](references/routing-examples.md)
 - [Troubleshooting Guide](references/troubleshooting-guide.md)
@@ -422,6 +533,6 @@ For issues or questions:
 
 ## Version
 
-**Version:** 1.0.0
-**Last Updated:** March 26, 2026
+**Version:** 2.0.0
+**Last Updated:** April 2, 2026
 **Compatibility:** Cortex Code CLI v1.0.42+, Claude Code CLI latest
