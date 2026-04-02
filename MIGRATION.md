@@ -553,7 +553,7 @@ security:
 
 ### Q: Can I skip the migration and stay on v1.x?
 
-**A:** Yes, but not recommended. V1.x has known security issues. Use v2.0.0 with `auto` mode if you need v1.x behavior.
+**A:** Yes, but v2.0.0 is recommended as it includes security enhancements not available in v1.x. Use v2.0.0 with `auto` mode if you need v1.x behavior.
 
 ### Q: Will my existing workflows break?
 
