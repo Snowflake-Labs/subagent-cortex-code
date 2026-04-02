@@ -4,11 +4,17 @@ Discovers Cortex Code capabilities by listing skills and parsing their metadata.
 Caches results for the current Claude Code session.
 """
 
+import argparse
 import json
 import subprocess
 import sys
 from pathlib import Path
 import re
+
+# Add parent directory to path for security imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from security.cache_manager import CacheManager
+from security.config_manager import ConfigManager
 
 
 def run_command(cmd):
@@ -139,16 +145,37 @@ def extract_triggers(content):
 
 def main():
     """Main discovery function."""
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description="Discover Cortex Code capabilities")
+    parser.add_argument(
+        "--cache-dir",
+        type=Path,
+        help="Cache directory for storing capabilities (default: from config or ~/.cache/cortex-skill)"
+    )
+    args = parser.parse_args()
+
+    # Determine cache directory
+    if args.cache_dir:
+        cache_dir = args.cache_dir
+    else:
+        # Get default from config
+        config_manager = ConfigManager()
+        cache_dir_str = config_manager.get("security.cache_dir")
+        cache_dir = Path(cache_dir_str).expanduser()
+
+    # Discover capabilities
     capabilities = discover_cortex_skills()
 
-    # Cache to /tmp for session duration
-    cache_path = Path("/tmp/cortex-capabilities.json")
-
-    with open(cache_path, 'w') as f:
-        json.dump(capabilities, f, indent=2)
-
-    print(f"Discovered {len(capabilities)} Cortex skills", file=sys.stderr)
-    print(f"Cached to: {cache_path}", file=sys.stderr)
+    # Cache using CacheManager with SHA256 fingerprint validation
+    try:
+        cache_manager = CacheManager(cache_dir)
+        cache_manager.write("cortex-capabilities", capabilities, ttl=86400)  # 24-hour TTL
+        print(f"Discovered {len(capabilities)} Cortex skills", file=sys.stderr)
+        print(f"Cached to: {cache_dir / 'cortex-capabilities.json'}", file=sys.stderr)
+    except Exception as e:
+        # If cache fails, log warning but continue
+        print(f"Warning: Failed to cache capabilities: {e}", file=sys.stderr)
+        print(f"Discovered {len(capabilities)} Cortex skills", file=sys.stderr)
 
     # Output the capabilities
     print(json.dumps(capabilities, indent=2))

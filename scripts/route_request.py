@@ -13,6 +13,7 @@ from typing import Optional, Dict, Any
 # Add parent directory to path for security imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from security.config_manager import ConfigManager
+from security.cache_manager import CacheManager
 
 
 # Snowflake/Cortex indicators
@@ -36,15 +37,27 @@ CLAUDE_CODE_INDICATORS = [
 
 
 def load_cortex_capabilities():
-    """Load cached Cortex capabilities."""
-    cache_path = Path("/tmp/cortex-capabilities.json")
+    """Load cached Cortex capabilities using CacheManager."""
+    try:
+        # Get cache directory from config
+        config_manager = ConfigManager()
+        cache_dir_str = config_manager.get("security.cache_dir")
+        cache_dir = Path(cache_dir_str).expanduser()
 
-    if not cache_path.exists():
-        print("Warning: Cortex capabilities not cached. Run discover_cortex.py first.", file=sys.stderr)
+        # Use CacheManager to read cache with integrity validation
+        cache_manager = CacheManager(cache_dir)
+        capabilities = cache_manager.read("cortex-capabilities")
+
+        if capabilities is None:
+            print("Warning: Cortex capabilities not cached. Run discover_cortex.py first.", file=sys.stderr)
+            return {}
+
+        return capabilities
+
+    except Exception as e:
+        print(f"Warning: Failed to load Cortex capabilities from cache: {e}", file=sys.stderr)
+        print("Run discover_cortex.py to cache capabilities.", file=sys.stderr)
         return {}
-
-    with open(cache_path, 'r') as f:
-        return json.load(f)
 
 
 def analyze_with_llm_logic(prompt, capabilities):
