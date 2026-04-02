@@ -307,3 +307,154 @@ security:
 
         assert result3["status"] == "blocked"
         assert "credential file" in result3["reason"].lower()
+
+
+class TestSecurityWrapperExecutionModes:
+    """Test security wrapper execution modes."""
+
+    def test_prompt_mode_execution(self, temp_dir):
+        """Test prompt mode with mock approval."""
+        config_path = temp_dir / "config.yaml"
+        config_path.write_text("""
+security:
+  approval_mode: prompt
+  audit_log_path: {}/audit.log
+  cache_dir: {}/.cache
+  sanitize_conversation_history: true
+""".format(temp_dir, temp_dir))
+
+        # Test with approval
+        result = execute_with_security(
+            prompt="Query Snowflake for sales data",
+            config_path=str(config_path),
+            envelope={"allowed_tools": ["SELECT"]},
+            mock_user_approval="approve"
+        )
+
+        # Should execute successfully
+        assert result["status"] == "executed"
+        assert result["approval_mode"] == "prompt"
+        assert "audit_id" in result
+        assert "predicted_tools" in result
+        assert "allowed_tools" in result
+        assert result["routing"]["decision"] == "cortex"
+
+        # Test with denial
+        result2 = execute_with_security(
+            prompt="Query Snowflake for sales data",
+            config_path=str(config_path),
+            envelope={"allowed_tools": ["SELECT"]},
+            mock_user_approval="deny"
+        )
+
+        assert result2["status"] == "denied"
+        assert "predicted_tools" in result2
+
+        # Test without mock - should return awaiting_approval
+        result3 = execute_with_security(
+            prompt="Query Snowflake for sales data",
+            config_path=str(config_path),
+            envelope={"allowed_tools": ["SELECT"]}
+        )
+
+        assert result3["status"] == "awaiting_approval"
+        assert "approval_prompt" in result3
+        assert "predicted_tools" in result3
+
+    def test_auto_mode_execution(self, temp_dir):
+        """Test auto mode (no approval needed)."""
+        config_path = temp_dir / "config.yaml"
+        config_path.write_text("""
+security:
+  approval_mode: auto
+  audit_log_path: {}/audit.log
+  cache_dir: {}/.cache
+""".format(temp_dir, temp_dir))
+
+        result = execute_with_security(
+            prompt="Query Snowflake for customer data",
+            config_path=str(config_path),
+            envelope={"allowed_tools": ["SELECT", "INSERT"]}
+        )
+
+        # Should auto-approve and execute
+        assert result["status"] == "executed"
+        assert result["approval_mode"] == "auto"
+        assert "audit_id" in result
+        assert "predicted_tools" in result
+        assert result["allowed_tools"] is not None
+
+        # Verify audit log was created
+        audit_log_path = temp_dir / "audit.log"
+        assert audit_log_path.exists()
+
+    def test_envelope_only_mode(self, temp_dir):
+        """Test envelope_only mode."""
+        config_path = temp_dir / "config.yaml"
+        config_path.write_text("""
+security:
+  approval_mode: envelope_only
+  audit_log_path: {}/audit.log
+  cache_dir: {}/.cache
+""".format(temp_dir, temp_dir))
+
+        result = execute_with_security(
+            prompt="Run Snowflake query",
+            config_path=str(config_path),
+            envelope={"allowed_tools": ["SELECT"]}
+        )
+
+        # Should execute with envelope enforcement only
+        assert result["status"] == "executed"
+        assert result["approval_mode"] == "envelope_only"
+        assert "audit_id" in result
+        assert result["allowed_tools"] is None  # None means rely on envelope only
+
+    def test_audit_logging_on_execution(self, temp_dir):
+        """Test that all executions are audited."""
+        config_path = temp_dir / "config.yaml"
+        audit_log_path = temp_dir / "audit.log"
+        config_path.write_text("""
+security:
+  approval_mode: auto
+  audit_log_path: {}
+  cache_dir: {}/.cache
+""".format(audit_log_path, temp_dir))
+
+        # Execute multiple times with Snowflake-specific prompts
+        for i in range(3):
+            result = execute_with_security(
+                prompt=f"Query Snowflake database for data {i}",
+                config_path=str(config_path),
+                envelope={"allowed_tools": ["SELECT"]}
+            )
+            assert result["status"] == "executed"
+            assert "audit_id" in result
+
+        # Verify audit log has entries
+        assert audit_log_path.exists()
+        with open(audit_log_path) as f:
+            lines = f.readlines()
+            # Should have at least 3 audit entries
+            assert len(lines) >= 3
+
+    def test_result_caching(self, temp_dir):
+        """Test result caching (placeholder for future)."""
+        config_path = temp_dir / "config.yaml"
+        config_path.write_text("""
+security:
+  approval_mode: auto
+  audit_log_path: {}/audit.log
+  cache_dir: {}/.cache
+""".format(temp_dir, temp_dir))
+
+        # For now, just verify execution works
+        # Caching will be implemented in future phase
+        result = execute_with_security(
+            prompt="Query Snowflake",
+            config_path=str(config_path),
+            envelope={"allowed_tools": ["SELECT"]}
+        )
+
+        assert result["status"] == "executed"
+        # TODO: Add cache verification when caching is implemented
