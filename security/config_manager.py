@@ -1,9 +1,15 @@
 """Configuration manager with 3-layer precedence."""
 import copy
+import os
 import sys
 from pathlib import Path
 from typing import Any, Optional, Dict
 import yaml
+
+
+class ConfigValidationError(Exception):
+    """Raised when configuration validation fails."""
+    pass
 
 
 class ConfigManager:
@@ -46,6 +52,66 @@ class ConfigManager:
         """Initialize config manager."""
         self._config = self._load_config(config_path, org_policy_path)
 
+    def _validate_config(self, config: Dict) -> None:
+        """Validate configuration values."""
+        security = config.get("security", {})
+
+        # Validate approval_mode
+        approval_mode = security.get("approval_mode")
+        if approval_mode not in ["prompt", "auto", "envelope_only"]:
+            raise ConfigValidationError(
+                f"Invalid approval_mode: {approval_mode}. "
+                f"Must be one of: prompt, auto, envelope_only"
+            )
+
+        # Validate allowed_envelopes
+        valid_envelopes = {"RO", "RW", "RESEARCH", "DEPLOY", "NONE"}
+        allowed_envelopes = security.get("allowed_envelopes", [])
+        for envelope in allowed_envelopes:
+            if envelope not in valid_envelopes:
+                raise ConfigValidationError(
+                    f"Invalid envelope: {envelope}. "
+                    f"Must be one of: {', '.join(valid_envelopes)}"
+                )
+
+        # Validate numeric values
+        confidence = security.get("tool_prediction_confidence_threshold")
+        if confidence is not None:
+            if not isinstance(confidence, (int, float)):
+                raise ConfigValidationError(
+                    f"tool_prediction_confidence_threshold must be a number, got {type(confidence).__name__}"
+                )
+            if not (0 <= confidence <= 1):
+                raise ConfigValidationError(
+                    f"tool_prediction_confidence_threshold must be between 0 and 1, got {confidence}"
+                )
+
+        retention = security.get("audit_log_retention")
+        if retention is not None:
+            if not isinstance(retention, int):
+                raise ConfigValidationError(
+                    f"audit_log_retention must be an integer, got {type(retention).__name__}"
+                )
+            if retention < 0:
+                raise ConfigValidationError(
+                    f"audit_log_retention must be >= 0, got {retention}"
+                )
+
+    def _expand_paths(self, config: Dict) -> Dict:
+        """Expand ~ and environment variables in file paths."""
+        security = config.get("security", {})
+
+        # Expand audit_log_path
+        if "audit_log_path" in security:
+            security["audit_log_path"] = os.path.expanduser(security["audit_log_path"])
+
+        # Expand cache_dir
+        if "cache_dir" in security:
+            security["cache_dir"] = os.path.expanduser(security["cache_dir"])
+
+        config["security"] = security
+        return config
+
     def _load_config(
         self,
         config_path: Optional[Path],
@@ -85,6 +151,12 @@ class ConfigManager:
                         print(f"Warning: Failed to parse org policy {org_policy_path}: {e}", file=sys.stderr)
             except OSError as e:
                 print(f"Warning: Failed to read org policy {org_policy_path}: {e}", file=sys.stderr)
+
+        # Validate configuration
+        self._validate_config(config)
+
+        # Expand file paths
+        config = self._expand_paths(config)
 
         return config
 

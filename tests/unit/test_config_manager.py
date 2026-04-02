@@ -137,3 +137,137 @@ def test_get_missing_key():
     config = ConfigManager()
     assert config.get("nonexistent.key", "default_value") == "default_value"
     assert config.get("nonexistent.key") is None
+
+
+def test_validate_approval_mode(mock_config_dir):
+    """Test that invalid approval_mode raises ConfigValidationError."""
+    import yaml
+    from security.config_manager import ConfigValidationError
+
+    # Create config with invalid approval_mode
+    invalid_config = {"security": {"approval_mode": "invalid_mode"}}
+    config_file = mock_config_dir / "config.yaml"
+    with open(config_file, 'w') as f:
+        yaml.dump(invalid_config, f)
+
+    # Should raise ConfigValidationError
+    with pytest.raises(ConfigValidationError, match="Invalid approval_mode"):
+        ConfigManager(config_path=config_file)
+
+
+def test_validate_envelope_list(mock_config_dir):
+    """Test that invalid envelope raises ConfigValidationError."""
+    import yaml
+    from security.config_manager import ConfigValidationError
+
+    # Create config with invalid envelope
+    invalid_config = {"security": {"allowed_envelopes": ["RO", "INVALID_ENVELOPE"]}}
+    config_file = mock_config_dir / "config.yaml"
+    with open(config_file, 'w') as f:
+        yaml.dump(invalid_config, f)
+
+    # Should raise ConfigValidationError
+    with pytest.raises(ConfigValidationError, match="Invalid envelope"):
+        ConfigManager(config_path=config_file)
+
+
+def test_validate_file_paths(mock_config_dir):
+    """Test that ~/ in paths gets expanded."""
+    import yaml
+    import os
+
+    # Create config with ~/ path
+    config_with_tilde = {
+        "security": {
+            "audit_log_path": "~/test_audit.log",
+            "cache_dir": "~/test_cache"
+        }
+    }
+    config_file = mock_config_dir / "config.yaml"
+    with open(config_file, 'w') as f:
+        yaml.dump(config_with_tilde, f)
+
+    config = ConfigManager(config_path=config_file)
+
+    # Paths should be expanded
+    audit_path = config.get("security.audit_log_path")
+    cache_dir = config.get("security.cache_dir")
+
+    assert audit_path.startswith(os.path.expanduser("~"))
+    assert not audit_path.startswith("~/")
+    assert cache_dir.startswith(os.path.expanduser("~"))
+    assert not cache_dir.startswith("~/")
+
+
+def test_validate_confidence_threshold_range():
+    """Test confidence threshold range validation."""
+    from security.config_manager import ConfigManager, ConfigValidationError
+    import yaml
+    import tempfile
+
+    # Test value > 1
+    invalid_config = {"security": {"tool_prediction_confidence_threshold": 1.5}}
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+        yaml.dump(invalid_config, f)
+        config_path = Path(f.name)
+
+    try:
+        with pytest.raises(ConfigValidationError, match="must be between 0 and 1"):
+            ConfigManager(config_path=config_path)
+    finally:
+        config_path.unlink()
+
+    # Test value < 0
+    invalid_config = {"security": {"tool_prediction_confidence_threshold": -0.1}}
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+        yaml.dump(invalid_config, f)
+        config_path = Path(f.name)
+
+    try:
+        with pytest.raises(ConfigValidationError, match="must be between 0 and 1"):
+            ConfigManager(config_path=config_path)
+    finally:
+        config_path.unlink()
+
+    # Test non-numeric value
+    invalid_config = {"security": {"tool_prediction_confidence_threshold": "high"}}
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+        yaml.dump(invalid_config, f)
+        config_path = Path(f.name)
+
+    try:
+        with pytest.raises(ConfigValidationError, match="must be a number"):
+            ConfigManager(config_path=config_path)
+    finally:
+        config_path.unlink()
+
+
+def test_validate_retention_value():
+    """Test audit log retention validation."""
+    from security.config_manager import ConfigManager, ConfigValidationError
+    import yaml
+    import tempfile
+
+    # Test negative value
+    invalid_config = {"security": {"audit_log_retention": -5}}
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+        yaml.dump(invalid_config, f)
+        config_path = Path(f.name)
+
+    try:
+        with pytest.raises(ConfigValidationError, match="must be >= 0"):
+            ConfigManager(config_path=config_path)
+    finally:
+        config_path.unlink()
+
+    # Test non-integer value
+    invalid_config = {"security": {"audit_log_retention": "forever"}}
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+        yaml.dump(invalid_config, f)
+        config_path = Path(f.name)
+
+    try:
+        with pytest.raises(ConfigValidationError, match="must be an integer"):
+            ConfigManager(config_path=config_path)
+    finally:
+        config_path.unlink()
