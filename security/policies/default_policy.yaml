@@ -1,4 +1,4 @@
-# Default security policy for cortex-code skill v2.0.0
+# Default security policy for cortex-code skill
 # This file documents the secure defaults - do not modify directly
 # To customize, create ~/.claude/skills/cortex-code/config.yaml
 

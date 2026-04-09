@@ -1,11 +1,9 @@
 # Cortex Code Skill Configuration Example
-# Version: 2.0.0
 #
 # Copy this file to ~/.claude/skills/cortex-code/config.yaml and customize for your needs.
 #
 # For detailed documentation, see:
 # - SECURITY.md - Security features and policies
-# - MIGRATION.md - Upgrading from v1.x
 # - SECURITY_GUIDE.md - Deployment best practices
 # - README.md - General usage guide
 
@@ -24,16 +22,15 @@ security:
   #                      User must review and approve predicted tools.
   #                      Best for: Interactive use, security-sensitive environments
   #
-  #   "auto"           - Auto-approve all operations (v1.x compatibility mode)
-  #                      Requires mandatory audit logging.
-  #                      Best for: Trusted environments, automated workflows
+#   "auto"           - Auto-approve all operations
+#                      Requires mandatory audit logging.
+#                      Best for: Trusted environments, automated workflows
   #
   #   "envelope_only"  - No tool prediction, rely on envelope blocklist only
   #                      Faster than "auto", still requires audit logging.
   #                      Best for: Trust Cortex Code's envelope enforcement
   #
   # SECURITY: Default is "prompt" for maximum security.
-  # MIGRATION: Use "auto" to maintain v1.x behavior with audit logging.
   #
   approval_mode: "prompt"
 
@@ -82,7 +79,7 @@ security:
   # Cache directory for Cortex capabilities and other temporary data.
   # Uses SHA256 fingerprint validation for integrity.
   #
-  # Default: ~/.cache/cortex-skill (v2.0.0 moved from insecure /tmp)
+  # Default: ~/.cache/cortex-skill
   #
   cache_dir: "~/.cache/cortex-skill"
 
@@ -214,9 +211,9 @@ security:
 #     - "RO"  # Only read-only by default
 
 # ------------------------------------------------------------------------------
-# COMPATIBILITY MODE (v1.x behavior)
+# AUTO-APPROVAL MODE
 # ------------------------------------------------------------------------------
-# Use this to maintain v1.x auto-approval behavior with audit logging.
+# Use this for auto-approval behavior with audit logging.
 #
 # security:
 #   approval_mode: "auto"
@@ -283,7 +280,6 @@ security:
 # Solution: Clear cache directory: rm -rf ~/.cache/cortex-skill/*
 #
 # For more troubleshooting, see:
-# - MIGRATION.md - Migration troubleshooting
 # - SECURITY_GUIDE.md - Security configuration help
 
 # ==============================================================================
@@ -293,12 +289,8 @@ security:
 # Documentation:
 # - README.md - General usage and features
 # - SECURITY.md - Security policy and threat model
-# - MIGRATION.md - Upgrading from v1.x
 # - SECURITY_GUIDE.md - Deployment best practices
 #
-# Design Documents:
-# - docs/superpowers/specs/2026-04-01-cortex-code-security-hardening-design.md
-#
 # Support:
-# - GitHub Issues: https://github.com/sfc-gh-tjia/claude_skill_cortexcode/issues
+# - GitHub Issues: https://github.com/Snowflake-Labs/subagent-cortex-code/issues
 # - Security: security@snowflake.com

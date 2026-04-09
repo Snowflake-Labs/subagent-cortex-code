@@ -3,7 +3,6 @@ name: cortex-code
 description: Routes Snowflake-related operations to Cortex Code CLI for specialized Snowflake expertise. Use when user asks about Snowflake databases, data warehouses, SQL queries on Snowflake, Cortex AI features, Snowpark, dynamic tables, data governance in Snowflake, Snowflake security, or mentions "Cortex" explicitly. Do NOT use for general programming, local file operations, non-Snowflake databases, web development, or infrastructure tasks unrelated to Snowflake.
 metadata:
   author: Snowflake Integration Team
-  version: 2.0.0
   compatibility: Requires Cortex Code CLI installed and configured
 ---
 
@@ -23,9 +22,9 @@ This skill enables Claude Code to leverage Cortex Code's specialized Snowflake e
 - Hybrid memory management
 - Audit logging for compliance
 
-## Security (v2.0.0)
+## Security
 
-Version 2.0.0 introduces a security wrapper around Cortex execution with three approval modes:
+The skill includes a security wrapper around Cortex execution with three approval modes:
 
 ### Approval Modes
 
@@ -35,7 +34,7 @@ Version 2.0.0 introduces a security wrapper around Cortex execution with three a
    - No audit logging required
    - Best for: Interactive sessions, untrusted prompts, production
 
-2. **auto**: Medium security (v1.x compatibility)
+2. **auto**: Medium security
    - All operations auto-approved
    - Mandatory audit logging
    - Envelopes still enforced
@@ -119,7 +118,7 @@ Proceed to Step 3.
 
 ### Step 3: Choose Security Envelope and Handle Approval
 
-**v2.0.0 Security Wrapper**: Before executing Cortex, the security wrapper handles approval based on configured mode.
+Before executing Cortex, the security wrapper handles approval based on configured mode.
 
 #### Step 3a: Check Approval Mode
 
@@ -225,16 +224,14 @@ This script:
 
 ### Step 6: Handle Permission Requests (Legacy)
 
-**Note for v2.0.0**: With the new security wrapper:
+With the security wrapper:
 - **prompt mode**: User approves BEFORE execution (no mid-execution prompts)
 - **auto/envelope_only modes**: All tools auto-approved via `--input-format stream-json`
 
-The security wrapper replaces interactive permission prompts with:
+The security wrapper handles permission management through:
 1. **Upfront approval** (prompt mode): User approves predicted tools before execution
 2. **Audit logging** (auto/envelope_only): All operations logged to `~/.claude/skills/cortex-code/audit.log`
 3. **Envelope enforcement**: Tool blocklist still enforced via `--disallowed-tools`
-
-Legacy behavior (v1.x): Tools were auto-approved via `--input-format stream-json`. This continues in auto/envelope_only modes.
 
 ### Step 7: Return Results to User
 
@@ -284,18 +281,16 @@ Format Cortex's output for Claude Code context:
 
 ## Important Notes
 
-### Security Wrapper (v2.0.0)
+### Security Wrapper
 
-The skill now uses a security wrapper that provides:
-- **Approval modes**: prompt (default), auto (v1.x compat), envelope_only
+The skill uses a security wrapper that provides:
+- **Approval modes**: prompt (default), auto, envelope_only
 - **Prompt sanitization**: Automatic PII removal and injection detection
 - **Credential blocking**: Prevents routing when credential paths detected
 - **Audit logging**: Mandatory for auto/envelope_only modes
 - **Tool prediction**: LLM predicts required tools for approval prompt
 
 **Configuration**: `~/.claude/skills/cortex-code/config.yaml` or organization policy
-
-**Migration from v1.x**: See [MIGRATION.md](MIGRATION.md) for upgrade guide.
 
 ### Programmatic Mode with Auto-Approval
 
@@ -348,8 +343,8 @@ cat ~/.claude/skills/cortex-code/config.yaml | grep approval_mode
 cat ~/.snowflake/cortex/claude-skill-policy.yaml 2>/dev/null
 
 # Expected:
-#   prompt = shows approval prompts (default in v2.0.0)
-#   auto = auto-approves (v1.x behavior)
+#   prompt = shows approval prompts (default)
+#   auto = auto-approves all operations
 #   envelope_only = auto-approves, no tool prediction
 ```
 
@@ -392,23 +387,10 @@ chmod 700 ~/.claude/skills/cortex-code
 cat ~/.claude/skills/cortex-code/config.yaml | grep audit_log_path
 ```
 
-### Migration Issues from v1.x
-
-See [MIGRATION.md](MIGRATION.md) for detailed upgrade guide.
-
-**Quick fix for v1.x compatibility**:
-```yaml
-security:
-  approval_mode: "auto"
-  audit_log_path: "~/.claude/skills/cortex-code/audit.log"
-```
-
-### Error: Tools still requiring approval (legacy issue)
+### Error: Tools still requiring approval
 **Cause**: Missing `--input-format stream-json` flag
 
-**Solution**: Ensure both `--output-format stream-json` AND `--input-format stream-json` are present. The input format flag is what enables programmatic auto-approval mode.
-
-**Note**: v2.0.0 handles this automatically via security wrapper.
+**Solution**: Ensure both `--output-format stream-json` AND `--input-format stream-json` are present. The input format flag is what enables programmatic auto-approval mode. The security wrapper handles this automatically.
 
 ### Issue: Routing sends Snowflake query to Claude Code
 **Cause**: Routing logic didn't detect Snowflake keywords

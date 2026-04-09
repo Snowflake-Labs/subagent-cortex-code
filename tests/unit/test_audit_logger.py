@@ -57,7 +57,7 @@ def test_create_audit_entry(temp_dir):
     assert entry["execution"]["prompt"] == "SELECT 1"
     assert entry["result"]["status"] == "success"
     assert "timestamp" in entry
-    assert entry["version"] == "2.0.0"
+    assert entry["version"] == "1.0.0"
     assert entry["audit_id"] == audit_id
 
 

@@ -23,11 +23,9 @@ Snowflake has that specialist: **Cortex Code**, an AI agent trained on Snowflake
 
 This skill bridges both agents using a **multi-agent harness pattern**: Claude Code acts as the orchestrator (managing conversation, routing, general tasks), while Cortex Code runs as a specialized agent (invoked only for Snowflake operations, executing autonomously, streaming results back). From the user's perspective, it's one conversation. Behind the scenes, two specialists collaborate — each in their domain of expertise.
 
-## Security Features (v2.0.0)
+## Security Features
 
-**⚠️ IMPORTANT: v1.x users, please see [MIGRATION.md](MIGRATION.md) for upgrade instructions.**
-
-Version 2.0.0 introduces a comprehensive security architecture to protect against unauthorized data access, prompt injection attacks, and credential exposure.
+The skill includes a comprehensive security architecture to protect against unauthorized data access, prompt injection attacks, and credential exposure.
 
 ### Three Approval Modes
 
@@ -36,7 +34,7 @@ Choose the security level that matches your needs:
 | Mode | Security | Use Case | User Experience |
 |------|----------|----------|-----------------|
 | **prompt** (default) | High | Interactive sessions, production | Approval prompt before execution |
-| **auto** | Medium | Automated workflows, v1.x compatibility | Auto-execute with audit logging |
+| **auto** | Medium | Automated workflows | Auto-execute with audit logging |
 | **envelope_only** | Medium | Trusted environments | Auto-execute, faster (no tool prediction) |
 
 **Configure in** `~/.claude/skills/cortex-code/config.yaml`:
@@ -56,7 +54,6 @@ security:
 **Learn more:**
 - [SECURITY.md](SECURITY.md) - Complete security policy and threat model
 - [SECURITY_GUIDE.md](SECURITY_GUIDE.md) - Best practices for personal/team/enterprise deployments
-- [MIGRATION.md](MIGRATION.md) - Upgrade guide from v1.x
 
 ## Architecture
 
@@ -139,7 +136,7 @@ The skill scripts use Python standard library only (no external dependencies req
 1. Clone this repository to your Claude Code skills directory:
    ```bash
    cd ~/.claude/skills/
-   git clone https://github.com/sfc-gh-tjia/claude_skill_cortexcode.git cortex-code
+   git clone https://github.com/Snowflake-Labs/subagent-cortex-code.git cortex-code
    ```
 
 2. Verify the skill is recognized:
@@ -157,7 +154,7 @@ The skill scripts use Python standard library only (no external dependencies req
    
    # Edit as needed (default is secure "prompt" mode)
    ```
-   
+
    See [SECURITY_GUIDE.md](SECURITY_GUIDE.md) for configuration recommendations.
 
 4. The skill will automatically load when you mention Snowflake-related tasks.
@@ -395,7 +392,7 @@ which cortex
    ```bash
    cat ~/.claude/skills/cortex-code/config.yaml | grep approval_mode
    # prompt = shows approval prompts (default)
-   # auto = auto-approves all operations (v1.x behavior)
+   # auto = auto-approves all operations
    # envelope_only = auto-approves, faster (no tool prediction)
    ```
 
@@ -404,12 +401,6 @@ which cortex
    cat ~/.snowflake/cortex/claude-skill-policy.yaml 2>/dev/null
    # Organization policy overrides user config
    ```
-
-3. **Migration from v1.x:**
-   - v1.x auto-approved all operations
-   - v2.0.0 defaults to prompt mode for security
-   - To restore v1.x behavior: set `approval_mode: "auto"`
-   - See [MIGRATION.md](MIGRATION.md) for full upgrade guide
 
 ### Issue: "Prompt contains credential file path"
 **Cause:** Prompt mentions paths like `~/.ssh/`, `.env`, etc. that match credential allowlist
@@ -438,16 +429,6 @@ security:
 2. If operation is safe, switch to a less restrictive envelope
 3. Or use envelope="NONE" with custom --disallowed-tools list
 
-### Issue: Tools still requiring approval (v1.x behavior)
-**Cause:** Using default `prompt` mode in v2.0.0
-
-**Solution:** Configure `auto` mode for v1.x compatibility:
-```yaml
-security:
-  approval_mode: "auto"
-  audit_log_path: "~/.claude/skills/cortex-code/audit.log"  # mandatory
-```
-
 ### Issue: Routing sends Snowflake query to Claude Code
 **Cause:** Routing logic didn't detect Snowflake keywords
 
@@ -468,7 +449,7 @@ chmod 700 ~/.claude/skills/cortex-code/
 cat ~/.claude/skills/cortex-code/config.yaml | grep audit_log_path
 ```
 
-For more troubleshooting, see [troubleshooting-guide.md](references/troubleshooting-guide.md) and [MIGRATION.md](MIGRATION.md).
+For more troubleshooting, see [troubleshooting-guide.md](references/troubleshooting-guide.md).
 
 ## Advanced Configuration
 
@@ -516,8 +497,6 @@ Contributions are welcome! Please:
 
 - [SECURITY.md](SECURITY.md) - Security policy, threat model, and features
 - [SECURITY_GUIDE.md](SECURITY_GUIDE.md) - Best practices for personal/team/enterprise
-- [MIGRATION.md](MIGRATION.md) - Upgrade guide from v1.x to v2.0.0
-- [CHANGELOG.md](CHANGELOG.md) - Version history and release notes
 - [Cortex CLI Reference](references/cortex-cli-reference.md)
 - [Routing Examples](references/routing-examples.md)
 - [Troubleshooting Guide](references/troubleshooting-guide.md)
@@ -529,11 +508,5 @@ Copyright © 2026 Snowflake Inc. All rights reserved.
 ## Support
 
 For issues or questions:
-- Open an issue on [GitHub](https://github.com/sfc-gh-tjia/claude_skill_cortexcode/issues)
+- Open an issue on [GitHub](https://github.com/Snowflake-Labs/subagent-cortex-code/issues)
 - Contact: Snowflake Integration Team
-
-## Version
-
-**Version:** 2.0.0
-**Last Updated:** April 2, 2026
-**Compatibility:** Cortex Code CLI v1.0.42+, Claude Code CLI latest

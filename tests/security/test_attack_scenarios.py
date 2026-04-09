@@ -395,7 +395,7 @@ class TestCacheTampering:
         # Write cache without fingerprint
         with open(cache_file, 'w') as f:
             json.dump({
-                "version": "2.0.0",
+                "version": "1.0.0",
                 "data": {"test": "data"}
                 # Missing: fingerprint, expires_at
             }, f)

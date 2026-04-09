@@ -1,6 +1,5 @@
 # Security Policy
 
-**Version:** 2.0.0  
 **Last Updated:** April 1, 2026  
 **Effective Date:** April 1, 2026
 
@@ -20,7 +19,7 @@
 
 ## Overview
 
-The cortex-code skill v2.0.0 implements a layered security architecture to protect against unauthorized data access, prompt injection attacks, and other security threats when integrating Claude Code with Cortex Code CLI.
+The cortex-code skill implements a layered security architecture to protect against unauthorized data access, prompt injection attacks, and other security threats when integrating Claude Code with Cortex Code CLI.
 
 **Security Principles:**
 - **Secure by default**: Prompt mode requires user approval before execution
@@ -40,7 +39,7 @@ Three modes balance security and convenience:
 | Mode | Security Level | Use Case | Auto-Approval | Audit Log |
 |------|----------------|----------|---------------|-----------|
 | **prompt** | High | Default, interactive use | No | Optional |
-| **auto** | Medium | v1.x compatibility | Yes | Mandatory |
+| **auto** | Medium | Automated workflows | Yes | Mandatory |
 | **envelope_only** | Medium | Trust envelopes only | Yes | Mandatory |
 
 **Default**: `prompt` (most secure)
@@ -238,7 +237,6 @@ Approve execution? [yes/no]
 **When to use**:
 - Trusted environments
 - Automated workflows
-- v1.x compatibility
 - Team collaboration
 
 **Requirements**:
@@ -467,37 +465,10 @@ cat audit.log | jq 'select(.result.status != "success")'
 
 ---
 
-## Security Changelog
-
-### v2.0.0 (April 1, 2026)
-
-**Security Enhancements:**
-- Added configurable approval modes (prompt/auto/envelope_only)
-- Implemented prompt sanitization (PII + injection detection)
-- Added credential file allowlist blocking
-- Replaced insecure /tmp cache with secure cache manager
-- Implemented mandatory audit logging for auto-approval modes
-- Added SHA256 cache integrity validation
-- Organization policy override support
-
-**Resolved Security Findings:**
-- **Critical**: Auto-approval bypass (Finding #1)
-- **High**: Prompt injection (Finding #2)
-- **High**: Piped installers (Finding #3)
-- **Medium**: Insecure /tmp cache (Finding #4)
-- **Medium**: Session file PII (Finding #5)
-- **Medium**: LLM routing risks (Finding #6)
-- **Medium**: No audit trail (Finding #7)
-- **Low**: DEPLOY envelope warnings (Finding #8)
-
----
-
 ## Additional Resources
 
-- [MIGRATION.md](MIGRATION.md) - Upgrading from v1.x to v2.0.0
 - [SECURITY_GUIDE.md](SECURITY_GUIDE.md) - Detailed security best practices
 - [README.md](README.md) - General documentation
-- [Design Document](docs/superpowers/specs/2026-04-01-cortex-code-security-hardening-design.md)
 
 ---
 

@@ -1,5 +1,5 @@
 """
-End-to-end integration tests for cortex-code skill v2.0.0.
+End-to-end integration tests for cortex-code skill.
 
 Tests the complete execution flow:
 1. Request → Routing → Security Wrapper → Approval → Execution → Audit Log
@@ -510,7 +510,7 @@ class TestE2ECacheIntegrity:
         cache_manager = CacheManager(cache_dir=cache_dir)
 
         # First run: write cache
-        test_data = {"capabilities": ["SELECT", "INSERT"], "version": "2.0.0"}
+        test_data = {"capabilities": ["SELECT", "INSERT"], "version": "1.0.0"}
         cache_manager.write("test-capabilities", test_data)
 
         # Verify cache was written with fingerprint
@@ -523,7 +523,7 @@ class TestE2ECacheIntegrity:
         # Verify data matches
         assert cached_data is not None
         assert cached_data["capabilities"] == ["SELECT", "INSERT"]
-        assert cached_data["version"] == "2.0.0"
+        assert cached_data["version"] == "1.0.0"
 
     def test_e2e_cache_corruption_detection(self, temp_dir):
         """Test that cache corruption is detected via fingerprint."""

@@ -1,6 +1,5 @@
 # Security Best Practices Guide
 
-**Version:** 2.0.0  
 **Last Updated:** April 1, 2026
 
 ## Table of Contents
@@ -19,7 +18,7 @@
 
 ## Overview
 
-This guide provides security best practices for deploying the cortex-code skill v2.0.0 across different environments. Choose the configuration that matches your threat model and operational requirements.
+This guide provides security best practices for deploying the cortex-code skill across different environments. Choose the configuration that matches your threat model and operational requirements.
 
 **Security Layers:**
 1. **Configuration security**: Approval modes, org policies
@@ -288,8 +287,7 @@ security:
 1. **Policy Management**
    ```bash
    # Deploy via configuration management (example: Ansible)
-   ansible-playbook deploy-cortex-skill-policy.yml \
-     --extra-vars "policy_version=v2.0.0"
+   ansible-playbook deploy-cortex-skill-policy.yml
    ```
 
 2. **Centralized Logging**
@@ -416,7 +414,6 @@ cat /var/log/cortex-skill/*.log | \
 ### Distribution Checklist
 
 - [ ] Include SECURITY.md in repository
-- [ ] Include MIGRATION.md for upgraders
 - [ ] Include SECURITY_GUIDE.md (this document)
 - [ ] Document secure defaults in README
 - [ ] Provide config.yaml.example with best practices
@@ -429,13 +426,13 @@ cat /var/log/cortex-skill/*.log | \
 ### Example config.yaml.example
 
 ```yaml
-# Example configuration for cortex-code skill v2.0.0
+# Example configuration for cortex-code skill
 #
 # Copy to ~/.claude/skills/cortex-code/config.yaml and customize
 
 security:
   # SECURITY: Use "prompt" mode for interactive approval
-  # Options: "prompt" (most secure), "auto" (v1.x compat), "envelope_only"
+  # Options: "prompt" (most secure), "auto", "envelope_only"
   approval_mode: "prompt"
   
   # Tool prediction confidence threshold
@@ -714,9 +711,7 @@ index=security sourcetype=cortex_skill_audit
 ## Additional Resources
 
 - [SECURITY.md](SECURITY.md) - Security policy and features
-- [MIGRATION.md](MIGRATION.md) - v1.x to v2.0.0 migration guide
 - [README.md](README.md) - General documentation
-- [Design Document](docs/superpowers/specs/2026-04-01-cortex-code-security-hardening-design.md)
 
 ---
 
