@@ -47,7 +47,7 @@ security:
 
 1. **Prompt Sanitization**: Automatic removal of PII (credit cards, SSN, emails) and injection attempts
 2. **Credential Blocking**: Prevents routing when paths like `~/.ssh/`, `.env`, or `credentials.json` are detected
-3. **Secure Caching**: Replaces insecure `/tmp` with `~/.cache/cortex-skill/` (SHA256 integrity validation)
+3. **Secure Caching**: Uses `~/.cache/cortex-skill/` with SHA256 integrity validation
 4. **Audit Logging**: Structured JSONL logs (mandatory for auto/envelope_only modes)
 5. **Organization Policy**: Enterprise admins can enforce security settings via `~/.snowflake/cortex/claude-skill-policy.yaml`
 

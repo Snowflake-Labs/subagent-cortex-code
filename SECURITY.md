@@ -67,7 +67,7 @@ Blocks routing when prompts contain paths from allowlist:
 
 ### 4. Secure Caching
 
-Replaces insecure `/tmp` usage with secure cache:
+Secure cache directory:
 - **Location**: `~/.cache/cortex-skill/` (user-only permissions)
 - **Integrity**: SHA256 fingerprint validation
 - **TTL**: 24-hour expiration for capabilities cache

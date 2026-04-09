@@ -222,7 +222,7 @@ This script:
 - `type: tool_use` → Cortex is calling a tool
 - `type: result` → Final outcome
 
-### Step 6: Handle Permission Requests (Legacy)
+### Step 6: Handle Permission Requests
 
 With the security wrapper:
 - **prompt mode**: User approves BEFORE execution (no mid-execution prompts)
