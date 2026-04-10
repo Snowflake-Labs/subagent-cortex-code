@@ -107,3 +107,43 @@ old-format-skill /path/to/old
     # - old-format-skill (old format)
     # - global-skill (new format)
     # But NOT the section headers [BUNDLED], [PROJECT], [GLOBAL]
+
+
+@pytest.mark.regression
+def test_bug2_stdin_devnull_prevents_hang():
+    """
+    Bug #2: Cortex CLI hung waiting on stdin in programmatic mode.
+
+    Original Issue:
+    - When calling cortex programmatically via subprocess, the process would hang
+    - Cortex CLI was waiting for stdin input even when not needed
+    - Caused timeouts and deadlocks in automated workflows
+
+    Fix: Commit 17d08fa
+    - Pass stdin=subprocess.DEVNULL to subprocess.Popen()
+    - Prevents process from waiting on stdin
+    - Ensures non-interactive execution in programmatic mode
+
+    This test verifies stdin=DEVNULL is passed to subprocess.Popen
+    when calling execute_cortex_streaming().
+    """
+    import subprocess
+    from shared.scripts.execute_cortex import execute_cortex_streaming
+
+    # Mock subprocess.Popen to capture the stdin argument
+    with patch('shared.scripts.execute_cortex.subprocess.Popen') as mock_popen:
+        # Configure mock to prevent actual execution
+        mock_process = MagicMock()
+        mock_process.stdout = []
+        mock_process.poll.return_value = 0
+        mock_process.returncode = 0
+        mock_popen.return_value = mock_process
+
+        # Execute cortex command
+        list(execute_cortex_streaming(['cortex', 'skills', 'list']))
+
+        # Verify subprocess.Popen was called with stdin=subprocess.DEVNULL
+        mock_popen.assert_called_once()
+        call_kwargs = mock_popen.call_args[1]
+        assert 'stdin' in call_kwargs, "stdin parameter must be specified"
+        assert call_kwargs['stdin'] == subprocess.DEVNULL, "stdin must be subprocess.DEVNULL to prevent hang"
