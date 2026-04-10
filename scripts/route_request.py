@@ -26,7 +26,7 @@ SNOWFLAKE_INDICATORS = [
     "stream", "task", "stage", "pipe"
 ]
 
-# Non-Snowflake indicators (route to Claude Code)
+# Non-Snowflake indicators (route to coding agent)
 CLAUDE_CODE_INDICATORS = [
     "local file", "git", "github", "commit", "push", "pull request",
     "python script", "javascript", "react", "frontend", "backend",
@@ -111,15 +111,15 @@ def analyze_with_llm_logic(prompt, capabilities):
     # Calculate confidence
     total_score = snowflake_score + claude_score
     if total_score == 0:
-        # No strong indicators, default to Claude Code for safety
-        return "claude", 0.5
+        # No strong indicators, default to coding agent for safety
+        return "__CODING_AGENT__", 0.5
 
     confidence = max(snowflake_score, claude_score) / total_score
 
     if snowflake_score > claude_score:
         return "cortex", confidence
     else:
-        return "claude", confidence
+        return "__CODING_AGENT__", confidence
 
 
 def check_credential_allowlist(

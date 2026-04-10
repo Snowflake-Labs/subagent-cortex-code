@@ -241,7 +241,7 @@ security:
         assert result["routing"]["confidence"] > 0.5
 
     def test_security_wrapper_routing_to_claude(self, temp_dir):
-        """Test that non-Snowflake prompts route to claude."""
+        """Test that non-Snowflake prompts route to coding agent."""
         config_path = temp_dir / "config.yaml"
         config_path.write_text("""
 security:
@@ -250,17 +250,21 @@ security:
   cache_dir: {}/.cache
 """.format(temp_dir, temp_dir))
 
-        # Local file operation prompt
-        result = execute_with_security(
-            prompt="Read local file config.json and parse it",
-            config_path=str(config_path),
-            dry_run=True
-        )
+        with patch('scripts.security_wrapper.load_cortex_capabilities') as mock_cap:
+            mock_cap.return_value = {}
 
-        # Verify routing to claude
-        assert result["status"] == "initialized"
-        assert "routing" in result
-        assert result["routing"]["decision"] == "claude"
+            # Local file operation prompt
+            result = execute_with_security(
+                prompt="Read local file config.json and parse it",
+                config_path=str(config_path),
+                dry_run=True,
+                envelope={"type": "RO"}
+            )
+
+            # Verify routing to coding agent
+            assert result["status"] == "initialized"
+            assert "routing" in result
+            assert result["routing"]["decision"] == "__CODING_AGENT__"
 
     def test_security_wrapper_blocks_credential_files(self, temp_dir):
         """Test that prompts with credential files are blocked."""

@@ -148,11 +148,11 @@ def execute_with_security(
         }
 
     # Step 8: Full execution flow
-    # Route to Claude Code for non-Snowflake requests
-    if route_decision == "claude":
+    # Route to Coding Agent for non-Snowflake requests
+    if route_decision == "__CODING_AGENT__":
         return {
-            "status": "routed_to_claude",
-            "message": "Request routed to Claude Code for local handling",
+            "status": "routed_to_coding_agent",
+            "message": "Request routed to coding agent for local handling",
             "routing": {"decision": route_decision, "confidence": route_confidence}
         }
 
