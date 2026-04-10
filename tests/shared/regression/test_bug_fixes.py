@@ -147,3 +147,118 @@ def test_bug2_stdin_devnull_prevents_hang():
         call_kwargs = mock_popen.call_args[1]
         assert 'stdin' in call_kwargs, "stdin parameter must be specified"
         assert call_kwargs['stdin'] == subprocess.DEVNULL, "stdin must be subprocess.DEVNULL to prevent hang"
+
+
+@pytest.mark.regression
+def test_bug3_no_allowed_tools_flag():
+    """
+    Bug #3: --allowed-tools blocked Snowflake MCP tools.
+
+    Original Issue:
+    - Using --allowed-tools creates a "must match pattern" check in Cortex CLI
+    - Snowflake MCP tools (snowflake_sql_execute, etc.) were blocked by this check
+    - This broke core Snowflake functionality in programmatic mode
+
+    Fix: Commit 17d08fa
+    - Removed --allowed-tools flag from command building
+    - Now exclusively use --disallowed-tools blocklist approach
+    - MCP tools work without explicit allowlisting
+
+    This test verifies that --allowed-tools is NEVER added to cortex commands,
+    ensuring Snowflake MCP tools remain accessible.
+    """
+    import subprocess
+    from shared.scripts.execute_cortex import execute_cortex_streaming
+
+    # Mock subprocess.Popen to capture the command
+    with patch('shared.scripts.execute_cortex.subprocess.Popen') as mock_popen:
+        # Configure mock to prevent actual execution
+        mock_process = MagicMock()
+        mock_process.stdout = []
+        mock_process.poll.return_value = 0
+        mock_process.returncode = 0
+        mock_popen.return_value = mock_process
+
+        # Execute cortex command with various approval modes
+        test_cases = [
+            {"approval_mode": "auto", "envelope": "RO"},
+            {"approval_mode": "envelope_only", "envelope": "RW"},
+            {"approval_mode": "prompt", "allowed_tools": ["Read", "Grep"]},
+        ]
+
+        for test_case in test_cases:
+            mock_popen.reset_mock()
+            list(execute_cortex_streaming("test prompt", **test_case))
+
+            # Verify command was built
+            mock_popen.assert_called_once()
+            cmd = mock_popen.call_args[0][0]
+
+            # CRITICAL: --allowed-tools must NEVER appear in command
+            assert "--allowed-tools" not in cmd, \
+                f"--allowed-tools found in command for {test_case}. " \
+                "This blocks Snowflake MCP tools. Use --disallowed-tools only."
+
+
+@pytest.mark.regression
+def test_bug3_envelope_uses_disallowed_blocklist():
+    """
+    Bug #3: Verify RO envelope blocks Edit/Write via --disallowed-tools.
+
+    Original Issue:
+    - --allowed-tools allowlist approach blocked Snowflake MCP tools
+    - Security envelopes need to work without breaking MCP functionality
+
+    Fix: Commit 17d08fa
+    - Security envelopes (RO, RESEARCH, etc.) now use --disallowed-tools blocklist
+    - RO envelope blocks: Edit, Write, destructive Bash commands
+    - Snowflake MCP tools remain accessible as they're not in blocklist
+
+    This test verifies that RO envelope correctly blocks write operations
+    via --disallowed-tools while allowing MCP tools.
+    """
+    import subprocess
+    from shared.scripts.execute_cortex import execute_cortex_streaming
+
+    # Mock subprocess.Popen to capture the command
+    with patch('shared.scripts.execute_cortex.subprocess.Popen') as mock_popen:
+        # Configure mock to prevent actual execution
+        mock_process = MagicMock()
+        mock_process.stdout = []
+        mock_process.poll.return_value = 0
+        mock_process.returncode = 0
+        mock_popen.return_value = mock_process
+
+        # Execute with RO envelope
+        list(execute_cortex_streaming("test prompt", envelope="RO", approval_mode="auto"))
+
+        # Verify command was built
+        mock_popen.assert_called_once()
+        cmd = mock_popen.call_args[0][0]
+
+        # Verify --disallowed-tools is used (not --allowed-tools)
+        assert "--disallowed-tools" in cmd, \
+            "RO envelope must use --disallowed-tools blocklist"
+        assert "--allowed-tools" not in cmd, \
+            "--allowed-tools must not be used (blocks MCP tools)"
+
+        # Find all disallowed tools in command
+        disallowed_tools = []
+        for i, arg in enumerate(cmd):
+            if arg == "--disallowed-tools" and i + 1 < len(cmd):
+                disallowed_tools.append(cmd[i + 1])
+
+        # Verify RO envelope blocks write operations
+        assert "Edit" in disallowed_tools, "RO envelope must block Edit tool"
+        assert "Write" in disallowed_tools, "RO envelope must block Write tool"
+
+        # Verify destructive bash commands are blocked
+        bash_blocks = [tool for tool in disallowed_tools if tool.startswith("Bash(")]
+        assert len(bash_blocks) > 0, "RO envelope must block destructive Bash commands"
+
+        # Verify no MCP tools are explicitly blocked
+        # (absence of --allowed-tools means MCP tools are accessible)
+        mcp_tools = ["snowflake_sql_execute", "snowflake_connection_test"]
+        for mcp_tool in mcp_tools:
+            assert mcp_tool not in disallowed_tools, \
+                f"MCP tool {mcp_tool} must not be blocked by RO envelope"
