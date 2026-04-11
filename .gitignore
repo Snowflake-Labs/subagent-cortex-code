@@ -20,6 +20,8 @@ build/
 
 # User configuration (local settings)
 config.yaml
+# Exception: Codex needs a default config.yaml for sandbox compatibility
+!integrations/codex/config.yaml
 
 # Generated/temporary directories
 semantic_view_*/
