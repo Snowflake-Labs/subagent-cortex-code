@@ -29,12 +29,10 @@ fi
 echo "Copying Claude Code specific files..."
 cp "$REPO_ROOT/integrations/claude-code/skill.md" "$TARGET/"
 cp "$REPO_ROOT/integrations/claude-code/config.yaml.example" "$TARGET/"
+cp "$REPO_ROOT/integrations/claude-code/config.yaml" "$TARGET/"
 
-# Copy config if not exists
-if [ ! -f "$TARGET/config.yaml" ]; then
-    echo "Creating default config.yaml..."
-    cp "$TARGET/config.yaml.example" "$TARGET/config.yaml"
-fi
+# Note: config.yaml with approval_mode: "auto" is created for non-interactive CLI usage
+# Users can customize via config.yaml.example if needed
 
 # Make scripts executable
 chmod +x "$TARGET/scripts/"*.py

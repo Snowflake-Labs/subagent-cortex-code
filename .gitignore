@@ -20,7 +20,8 @@ build/
 
 # User configuration (local settings)
 config.yaml
-# Exception: Codex needs a default config.yaml for sandbox compatibility
+# Exception: Claude Code and Codex need default config.yaml for proper setup
+!integrations/claude-code/config.yaml
 !integrations/codex/config.yaml
 
 # Generated/temporary directories
