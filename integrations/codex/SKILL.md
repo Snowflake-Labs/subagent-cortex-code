@@ -63,10 +63,21 @@ Choose an envelope based on the task:
 **With approval_mode: "auto" (default in config.yaml), execute directly:**
 
 ```bash
-python3 /Users/tjia/.codex/skills/cortex-code/scripts/execute_cortex.py --prompt "USER_PROMPT_HERE" --envelope RO
+# Step 1: Execute Cortex with output file (handles Codex backgrounding)
+RESULT_FILE="/tmp/cortex-result-$$.txt"
+python3 /Users/tjia/.codex/skills/cortex-code/scripts/execute_cortex.py \
+  --prompt "USER_PROMPT_HERE" \
+  --envelope RO \
+  --output-file "$RESULT_FILE"
+
+# Step 2: Wait for completion (10-20 seconds)
+sleep 2
+
+# Step 3: Read results from file
+cat "$RESULT_FILE" | python3 -m json.tool --compact
 ```
 
-**Note**: This takes 10-20 seconds. Wait for completion.
+**Note**: Using --output-file works around Codex CLI backgrounding behavior. The script writes results to /tmp/ and you can read them immediately after completion.
 
 ### 5. Present results back in Codex
 

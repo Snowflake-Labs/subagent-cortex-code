@@ -234,6 +234,7 @@ def main():
     parser.add_argument("--allowed-tools", nargs="+",
                        help="Tools that are allowed (for prompt mode)")
     parser.add_argument("--stream", action="store_true", help="Stream output (always true)")
+    parser.add_argument("--output-file", help="Write results to file (for background execution)")
     args = parser.parse_args()
 
     # Execute Cortex
@@ -247,7 +248,20 @@ def main():
     )
 
     # Output results as JSON
-    print(json.dumps(results, indent=2))
+    if args.output_file:
+        # Write to file for background execution
+        with open(args.output_file, 'w') as f:
+            json.dump(results, f, indent=2)
+        # Print short success message to stdout
+        if results.get("error"):
+            print(f"Error: {results['error']}")
+            print(f"Full results written to: {args.output_file}")
+        else:
+            print(f"✓ Cortex execution completed")
+            print(f"Result written to: {args.output_file}")
+    else:
+        # Print full results to stdout (original behavior)
+        print(json.dumps(results, indent=2))
 
     # Exit with appropriate code
     if results.get("error"):
