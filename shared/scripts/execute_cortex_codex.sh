@@ -45,8 +45,13 @@ if [[ -n "$CONNECTION" ]]; then
 fi
 
 # Execute and wait for completion
-# Close stdin and redirect outputs to properly detach
-"${CMD[@]}" </dev/null >/dev/null 2>&1
+# Output progress immediately so Codex knows we're running
+echo "⏳ Starting Cortex query (this takes 15-30 seconds)..."
+
+# Run with progress output (don't suppress stdout when using output-file)
+"${CMD[@]}" </dev/null 2>/dev/null
+
+echo "✓ Query completed, reading results..."
 
 # Wait a moment for file write to complete
 sleep 1

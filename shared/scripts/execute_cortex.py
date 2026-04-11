@@ -43,7 +43,8 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
                              disallowed_tools: Optional[List[str]] = None,
                              envelope: str = "RW",
                              approval_mode: str = "auto",
-                             allowed_tools: Optional[List[str]] = None) -> Dict:
+                             allowed_tools: Optional[List[str]] = None,
+                             output_file: Optional[str] = None) -> Dict:
     """
     Execute Cortex with streaming JSON output in programmatic mode.
 
@@ -159,7 +160,10 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
                 # Extract session ID
                 if event_type == "system" and event.get("subtype") == "init":
                     results["session_id"] = event.get("session_id")
-                    print(f"→ Started Cortex session: {results['session_id']}", file=sys.stderr)
+                    msg = f"→ Started Cortex session: {results['session_id']}"
+                    print(msg, file=sys.stderr)
+                    if output_file:
+                        print(msg, flush=True)  # Also print to stdout for progress
 
                 # Handle assistant responses
                 elif event_type == "assistant":
@@ -172,7 +176,10 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
 
                         elif item.get("type") == "tool_use":
                             tool_name = item.get("name")
-                            print(f"[Cortex] Using tool: {tool_name}", file=sys.stderr)
+                            msg = f"[Cortex] Using tool: {tool_name}"
+                            print(msg, file=sys.stderr)
+                            if output_file:
+                                print(msg, flush=True)  # Progress to stdout
 
                 # Handle permission requests (via user messages with tool_result containing denials)
                 elif event_type == "user":
@@ -245,7 +252,8 @@ def main():
         disallowed_tools=args.disallowed_tools,
         envelope=args.envelope,
         approval_mode=args.approval_mode,
-        allowed_tools=args.allowed_tools
+        allowed_tools=args.allowed_tools,
+        output_file=args.output_file  # Pass through for progress output
     )
 
     # Output results as JSON
