@@ -113,7 +113,7 @@ def execute_with_security(
                 "message": "Cannot route prompts containing credential file paths for security"
             }
 
-    # Step 5: Determine routing (cortex vs CodingAgent) on sanitized prompt
+    # Step 5: Determine routing (cortex vs codex) on sanitized prompt
     capabilities = load_cortex_capabilities()
     route_decision, route_confidence = analyze_with_llm_logic(sanitized_prompt, capabilities)
 
@@ -148,11 +148,11 @@ def execute_with_security(
         }
 
     # Step 8: Full execution flow
-    # Route to CodingAgent for non-Snowflake requests
-    if route_decision == "__CODING_AGENT__":
+    # Route to Codex for non-Snowflake requests
+    if route_decision == "codex":
         return {
-            "status": "routed_to___CODING_AGENT__",
-            "message": "Request routed to __CODING_AGENT__ for local handling",
+            "status": "routed_to_codex",
+            "message": "Request routed to Codex for local handling",
             "routing": {"decision": route_decision, "confidence": route_confidence}
         }
 
@@ -278,6 +278,14 @@ def main():
     )
 
     args = parser.parse_args()
+
+    # Auto-detect config path if not provided
+    if not args.config:
+        script_dir = Path(__file__).parent
+        skill_dir = script_dir.parent
+        default_config = skill_dir / "config.yaml"
+        if default_config.exists():
+            args.config = str(default_config)
 
     # Parse envelope if provided
     envelope = None

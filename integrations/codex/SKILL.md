@@ -16,17 +16,17 @@ Only Snowflake-specific operations go to Cortex Code. Everything else stays in C
 
 ## How to use this skill
 
-When this skill triggers, follow this workflow.
+When this skill triggers, follow this workflow exactly:
 
-### 1. Discover Cortex capabilities if needed
+### 1. Discover Cortex capabilities (REQUIRED on first use)
 
-If Cortex capabilities are not cached yet, or the cache appears stale, run:
+**Always run this first** to cache Cortex skill capabilities:
 
 ```bash
 python3 scripts/discover_cortex.py
 ```
 
-This discovers available Cortex skills and caches them for later routing decisions.
+This discovers available Cortex skills and caches them to `/tmp/cortex-skill-cache/` for routing decisions.
 
 ### 2. Route the user request
 
@@ -66,7 +66,7 @@ Choose an envelope based on the task:
 python3 scripts/execute_cortex.py --prompt "USER_PROMPT_HERE" --envelope RO
 ```
 
-**IMPORTANT FOR CODEX**: Run this command **synchronously** (NOT in background terminal). It takes 10-20 seconds and streams output as it executes. Background execution will cause the process to hang without capturing results.
+**IMPORTANT**: Run synchronously (NOT in background terminal) - takes 10-20 seconds.
 
 ### 5. Present results back in Codex
 
@@ -104,7 +104,6 @@ Optional org policy path:
 
 ## Notes for Codex
 
-- **CRITICAL**: Run execute_cortex.py synchronously, NOT in background terminal. Background execution prevents proper output capture.
 - Treat `codex` as the local-handling route.
 - Do not route local file operations to Cortex.
 - Do not send credential files, local secrets, or unrelated repo context to Cortex.

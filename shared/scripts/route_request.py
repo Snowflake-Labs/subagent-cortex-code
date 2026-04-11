@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-LLM-based routing logic to determine if request should go to Cortex Code or CodingAgent.
+LLM-based routing logic to determine if request should go to Cortex Code or Codex.
 Uses semantic understanding rather than simple keyword matching.
 """
 
@@ -26,8 +26,8 @@ SNOWFLAKE_INDICATORS = [
     "stream", "task", "stage", "pipe"
 ]
 
-# Non-Snowflake indicators (route to CodingAgent)
-CODING_AGENT_INDICATORS = [
+# Non-Snowflake indicators (route to Codex)
+CLAUDE_CODE_INDICATORS = [
     "local file", "git", "github", "commit", "push", "pull request",
     "python script", "javascript", "react", "frontend", "backend",
     "postgres", "mysql", "mongodb", "redis",
@@ -39,8 +39,13 @@ CODING_AGENT_INDICATORS = [
 def load_cortex_capabilities():
     """Load cached Cortex capabilities using CacheManager."""
     try:
+        # Auto-detect config path from script location
+        script_dir = Path(__file__).parent
+        skill_dir = script_dir.parent
+        config_path = skill_dir / "config.yaml"
+
         # Get cache directory from config
-        config_manager = ConfigManager()
+        config_manager = ConfigManager(config_path=config_path if config_path.exists() else None)
         cache_dir_str = config_manager.get("security.cache_dir")
         cache_dir = Path(cache_dir_str).expanduser()
 
@@ -69,7 +74,7 @@ def analyze_with_llm_logic(prompt, capabilities):
 
     # Score based on indicators
     snowflake_score = 0
-    coding_agent_score = 0
+    claude_score = 0
 
     # Check for explicit Snowflake/Cortex mentions
     for indicator in SNOWFLAKE_INDICATORS:
@@ -77,9 +82,9 @@ def analyze_with_llm_logic(prompt, capabilities):
             snowflake_score += 3 if indicator in ["snowflake", "cortex"] else 1
 
     # Check for non-Snowflake indicators
-    for indicator in CODING_AGENT_INDICATORS:
+    for indicator in CLAUDE_CODE_INDICATORS:
         if indicator in prompt_lower:
-            coding_agent_score += 2
+            claude_score += 2
 
     # Check against Cortex skill triggers
     for skill_name, skill_info in capabilities.items():
@@ -97,7 +102,7 @@ def analyze_with_llm_logic(prompt, capabilities):
             snowflake_score += 3
         else:
             # Generic SQL, likely not Snowflake
-            coding_agent_score += 1
+            claude_score += 1
 
     # Data-related terms (ambiguous, need context)
     data_terms = ["data quality", "schema", "table", "database", "query"]
@@ -109,17 +114,17 @@ def analyze_with_llm_logic(prompt, capabilities):
             snowflake_score += 2
 
     # Calculate confidence
-    total_score = snowflake_score + coding_agent_score
+    total_score = snowflake_score + claude_score
     if total_score == 0:
-        # No strong indicators, default to CodingAgent for safety
-        return "__CODING_AGENT__", 0.5
+        # No strong indicators, default to Codex for safety
+        return "codex", 0.5
 
-    confidence = max(snowflake_score, coding_agent_score) / total_score
+    confidence = max(snowflake_score, claude_score) / total_score
 
-    if snowflake_score > coding_agent_score:
+    if snowflake_score > claude_score:
         return "cortex", confidence
     else:
-        return "__CODING_AGENT__", confidence
+        return "codex", confidence
 
 
 def check_credential_allowlist(
@@ -131,7 +136,7 @@ def check_credential_allowlist(
     Check if prompt contains credential file paths from the allowlist.
 
     This function runs before routing analysis to block prompts that reference
-    credential files, regardless of whether they would be routed to Cortex or Claude.
+    credential files, regardless of whether they would be routed to Cortex or Codex.
 
     Args:
         prompt: User prompt to check
@@ -187,7 +192,7 @@ def check_credential_allowlist(
 
 def main():
     """Main routing function."""
-    parser = argparse.ArgumentParser(description="Route request to Cortex or Claude Code")
+    parser = argparse.ArgumentParser(description="Route request to Cortex or Codex")
     parser.add_argument("--prompt", required=True, help="User prompt to analyze")
     parser.add_argument("--config", help="Path to user config file")
     parser.add_argument("--org-policy", help="Path to organization policy file")
