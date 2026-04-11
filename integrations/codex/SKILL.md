@@ -8,7 +8,7 @@ metadata:
 
 # Cortex Code Integration for Codex
 
-This skill lets Codex delegate Snowflake-specific work to Cortex Code CLI while Codex remains the primary assistant for general coding and local repository tasks.
+This skill lets Codex delegate Snowflake-specific work to Cortex Code via the `cortexcode-tool` CLI while Codex remains the primary assistant for general coding and local repository tasks.
 
 ## Routing Principle
 
@@ -18,17 +18,7 @@ Only Snowflake-specific operations go to Cortex Code. Everything else stays in C
 
 When this skill triggers, follow this workflow.
 
-### 1. Discover Cortex capabilities if needed
-
-If Cortex capabilities are not cached yet, or the cache appears stale, run:
-
-```bash
-python3 scripts/discover_cortex.py
-```
-
-This discovers available Cortex skills and caches them for later routing decisions.
-
-### 2. Route the user request
+### 1. Route the user request (Optional but Recommended)
 
 Analyze the user prompt before acting:
 
@@ -41,7 +31,9 @@ Interpret the routing result as:
 - `codex` → handle locally in Codex
 - `blocked` → do not execute; explain why and ask for a safer reformulation if needed
 
-### 3. If routed to Codex
+**Note**: You can skip this step if the request is clearly Snowflake-related.
+
+### 2. If routed to Codex
 
 Handle the request directly using Codex tools and normal local workflow. Do not invoke Cortex.
 
@@ -52,7 +44,7 @@ Typical Codex-handled requests include:
 - general Python, JavaScript, shell, or infrastructure work
 - non-Snowflake databases
 
-### 4. If routed to Cortex
+### 3. If routed to Cortex
 
 Choose an envelope based on the task:
 - `RO` for read-only or query operations
@@ -60,24 +52,27 @@ Choose an envelope based on the task:
 - `RESEARCH` for exploratory work
 - `DEPLOY` only for high-trust deployment-style operations
 
-**With approval_mode: "auto" (default in config.yaml), execute directly:**
+**With approval_mode: "auto" (default in config.yaml), use cortexcode-tool CLI:**
 
 ```bash
-python3 /Users/tjia/.codex/skills/cortex-code/scripts/execute_cortex.py \
-  --prompt "USER_PROMPT_HERE" \
-  --envelope RO
+cortexcode-tool "USER_PROMPT_HERE" --envelope RO
 ```
 
-**Note**: Direct execution takes 15-20 seconds and streams output. Output will be JSON format - parse final_result field for the answer.
+**Note**: The cortexcode-tool CLI handles Cortex execution efficiently. Takes 15-30 seconds and returns clean output. First run includes capability discovery (one-time, cached afterward).
 
-### 5. Present results back in Codex
+### 4. Present results back in Codex
 
-After Cortex finishes:
-- Parse the JSON output to extract final_result field
-- Use: `echo "$OUTPUT" | python3 -c "import sys, json; r=json.load(sys.stdin); print(r.get('final_result', 'No result'))"`
+After cortexcode-tool finishes:
+- The tool returns clean, formatted output (not JSON)
 - Summarize the result clearly for the user
 - Include key findings, SQL, errors, or next actions
 - Keep Codex as the user-facing orchestrator
+
+**Example output:**
+```
+✓ Routing to Cortex Code (confidence: 100.00%)
+You have **64 databases** in your Snowflake account...
+```
 
 ## Security expectations
 
