@@ -60,17 +60,13 @@ Choose an envelope based on the task:
 - `RESEARCH` for exploratory work
 - `DEPLOY` only for high-trust deployment-style operations
 
-Preferred execution path:
+**With approval_mode: "auto" (default in config.yaml), execute directly:**
 
 ```bash
-python3 scripts/security_wrapper.py --prompt "USER_PROMPT_HERE" --envelope '{"mode":"RO"}'
+python3 /Users/tjia/.codex/skills/cortex-code/scripts/execute_cortex.py --prompt "USER_PROMPT_HERE" --envelope RO
 ```
 
-If the wrapper is not needed for the current run, execute directly:
-
-```bash
-python3 scripts/execute_cortex.py --prompt "USER_PROMPT_HERE" --envelope RO
-```
+**Note**: This takes 10-20 seconds. Wait for completion.
 
 ### 5. Present results back in Codex
 
