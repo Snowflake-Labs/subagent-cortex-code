@@ -29,12 +29,11 @@ fi
 echo "Copying Codex specific files..."
 cp "$REPO_ROOT/integrations/codex/SKILL.md" "$TARGET/"
 cp "$REPO_ROOT/integrations/codex/config.yaml.example" "$TARGET/"
+cp "$REPO_ROOT/integrations/codex/setup_guidance.md" "$TARGET/" 2>/dev/null || true
 
-# Copy config if not exists
-if [ ! -f "$TARGET/config.yaml" ]; then
-    echo "Creating default config.yaml..."
-    cp "$TARGET/config.yaml.example" "$TARGET/config.yaml"
-fi
+# Note: config.yaml is NOT created by default
+# The skill uses sensible defaults from config_manager.py
+# Users can create config.yaml from config.yaml.example if customization is needed
 
 # Make scripts executable
 chmod +x "$TARGET/scripts/"*.py
@@ -42,7 +41,7 @@ chmod +x "$TARGET/scripts/"*.py
 echo ""
 echo "✓ Codex skill installed successfully"
 echo "  Location: $TARGET"
-echo "  Config: $TARGET/config.yaml"
-echo "  Audit log: ~/.codex/skills/cortex-code/audit.log"
+echo "  Using default configuration (no config.yaml)"
+echo "  To customize: cp $TARGET/config.yaml.example $TARGET/config.yaml"
 echo ""
 echo "See setup_guidance.md for usage instructions"
