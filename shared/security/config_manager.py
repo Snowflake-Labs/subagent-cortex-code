@@ -20,7 +20,7 @@ class ConfigManager:
             "approval_mode": "prompt",
             "tool_prediction_confidence_threshold": 0.7,
             "allow_tool_expansion": True,
-            "audit_log_path": "~/.__CODING_AGENT__/skills/cortex-code/audit.log",
+            "audit_log_path": "~/.codex/skills/cortex-code/audit.log",
             "audit_log_rotation": "10MB",
             "audit_log_retention": 30,
             "sanitize_conversation_history": True,

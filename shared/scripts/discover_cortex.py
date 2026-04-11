@@ -158,13 +158,8 @@ def main():
     if args.cache_dir:
         cache_dir = args.cache_dir
     else:
-        # Auto-detect config from script location
-        script_dir = Path(__file__).parent
-        skill_dir = script_dir.parent
-        config_path = skill_dir / "config.yaml"
-
         # Get default from config
-        config_manager = ConfigManager(config_path=config_path if config_path.exists() else None)
+        config_manager = ConfigManager()
         cache_dir_str = config_manager.get("security.cache_dir")
         cache_dir = Path(cache_dir_str).expanduser()
 

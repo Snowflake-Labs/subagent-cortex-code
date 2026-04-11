@@ -1,6 +1,6 @@
-# Default security policy for cortex-code skill
+# Default security policy for cortex-code skill v2.0.0
 # This file documents the secure defaults - do not modify directly
-# To customize, create ~/.claude/skills/cortex-code/config.yaml
+# To customize, create ~/.codex/skills/cortex-code/config.yaml
 
 security:
   # Approval mode: "prompt" | "auto" | "envelope_only"
@@ -12,7 +12,7 @@ security:
   allow_tool_expansion: true
 
   # Audit logging (mandatory when approval_mode: "auto")
-  audit_log_path: "~/.claude/skills/cortex-code/audit.log"
+  audit_log_path: "~/.codex/skills/cortex-code/audit.log"
   audit_log_rotation: "10MB"
   audit_log_retention: 30
 

@@ -279,14 +279,6 @@ def main():
 
     args = parser.parse_args()
 
-    # Auto-detect config path if not provided
-    if not args.config:
-        script_dir = Path(__file__).parent
-        skill_dir = script_dir.parent
-        default_config = skill_dir / "config.yaml"
-        if default_config.exists():
-            args.config = str(default_config)
-
     # Parse envelope if provided
     envelope = None
     if args.envelope:
