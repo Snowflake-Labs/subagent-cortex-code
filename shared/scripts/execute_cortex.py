@@ -130,6 +130,7 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
         # Start process
         process = subprocess.Popen(
             cmd,
+            stdin=subprocess.DEVNULL,  # Explicitly close stdin to avoid backgrounding issues
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,

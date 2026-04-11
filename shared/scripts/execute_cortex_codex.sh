@@ -45,7 +45,8 @@ if [[ -n "$CONNECTION" ]]; then
 fi
 
 # Execute and wait for completion
-"${CMD[@]}" > /dev/null 2>&1
+# Close stdin and redirect outputs to properly detach
+"${CMD[@]}" </dev/null >/dev/null 2>&1
 
 # Wait a moment for file write to complete
 sleep 1
