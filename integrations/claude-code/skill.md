@@ -123,18 +123,22 @@ Before executing Cortex, the security wrapper handles approval based on configur
 #### Step 3a: Check Approval Mode
 
 Read configuration to determine approval behavior:
-- **prompt mode** (default): Requires user approval
-- **auto mode**: Auto-approve with audit logging
-- **envelope_only mode**: Auto-approve, no tool prediction
+- **auto mode** (default for CLI): Auto-approve with audit logging, skip to Step 4
+- **envelope_only mode**: Auto-approve, no tool prediction, skip to Step 4
+- **prompt mode**: Requires user approval, proceed to Step 3b
 
-#### Step 3b: Handle Approval (if prompt mode)
+**Note**: With `approval_mode: "auto"` (default in config.yaml), **skip Step 3b entirely** and proceed directly to Step 4.
+
+#### Step 3b: Handle Approval (prompt mode only)
+
+**Only use this step if approval_mode is "prompt".** Otherwise skip to Step 4.
 
 If using prompt mode:
 
 ```bash
 python scripts/security_wrapper.py \
   --prompt "ENRICHED_PROMPT" \
-  --envelope "RW"
+  --envelope '{"mode":"RW"}'
 ```
 
 This will:
@@ -154,6 +158,8 @@ This will:
    ```
 3. If approved, proceed to Step 3c
 4. If denied, abort execution
+
+**Important**: The --envelope parameter must be JSON format for security_wrapper.py.
 
 #### Step 3c: Determine Security Envelope
 
