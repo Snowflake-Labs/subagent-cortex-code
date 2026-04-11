@@ -63,19 +63,21 @@ Choose an envelope based on the task:
 **With approval_mode: "auto" (default in config.yaml), execute directly:**
 
 ```bash
-bash /Users/tjia/.codex/skills/cortex-code/scripts/execute_cortex_codex.sh \
+python3 /Users/tjia/.codex/skills/cortex-code/scripts/execute_cortex.py \
   --prompt "USER_PROMPT_HERE" \
   --envelope RO
 ```
 
-**Note**: The wrapper script execute_cortex_codex.sh handles Codex CLI backgrounding. It runs execute_cortex.py, waits for completion, reads the result file, and outputs the final answer. Takes 10-20 seconds.
+**Note**: Direct execution takes 15-20 seconds and streams output. Output will be JSON format - parse final_result field for the answer.
 
 ### 5. Present results back in Codex
 
 After Cortex finishes:
-- summarize the result clearly for the user
-- include key findings, SQL, errors, or next actions
-- keep Codex as the user-facing orchestrator
+- Parse the JSON output to extract final_result field
+- Use: `echo "$OUTPUT" | python3 -c "import sys, json; r=json.load(sys.stdin); print(r.get('final_result', 'No result'))"`
+- Summarize the result clearly for the user
+- Include key findings, SQL, errors, or next actions
+- Keep Codex as the user-facing orchestrator
 
 ## Security expectations
 
