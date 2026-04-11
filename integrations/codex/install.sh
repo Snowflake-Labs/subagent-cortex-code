@@ -44,6 +44,11 @@ cp "$REPO_ROOT/integrations/codex/config.yaml" "$TARGET/"
 cp "$REPO_ROOT/integrations/codex/setup_guidance.md" "$TARGET/"
 cp "$REPO_ROOT/integrations/codex/setup_guidance.md" "$TARGET/setup_guidance_codex_coco_skill.md"
 
+# Copy cortexcode-tool config to /tmp for sandbox compatibility
+echo "Setting up cortexcode-tool config for Codex sandbox..."
+cp "$REPO_ROOT/integrations/codex/cortexcode-tool-codex.yaml" "/tmp/cortexcode-tool-codex.yaml"
+chmod 644 "/tmp/cortexcode-tool-codex.yaml"
+
 # Note: config.yaml with approval_mode: "auto" is created for non-interactive CLI usage
 # Uses /tmp/ paths for audit and cache to avoid Codex sandbox restrictions
 

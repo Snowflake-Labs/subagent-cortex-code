@@ -55,10 +55,10 @@ Choose an envelope based on the task:
 **With approval_mode: "auto" (default in config.yaml), use cortexcode-tool CLI:**
 
 ```bash
-cortexcode-tool "USER_PROMPT_HERE" --envelope RO
+cortexcode-tool "USER_PROMPT_HERE" --envelope RO --config /tmp/cortexcode-tool-codex.yaml
 ```
 
-**Note**: The cortexcode-tool CLI handles Cortex execution efficiently. Takes 15-30 seconds and returns clean output. First run includes capability discovery (one-time, cached afterward).
+**Note**: The --config parameter uses /tmp/ paths to avoid Codex sandbox restrictions on ~/.cache/. The cortexcode-tool CLI handles Cortex execution efficiently. Takes 15-30 seconds and returns clean output.
 
 ### 4. Present results back in Codex
 

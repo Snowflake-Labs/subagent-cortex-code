@@ -1,0 +1,33 @@
+# Cortexcode Tool Configuration for Codex CLI
+# Uses /tmp/ paths to avoid Codex sandbox restrictions
+
+security:
+  approval_mode: "auto"  # Auto-approve for non-interactive CLI usage
+  audit_log_path: "/tmp/cortexcode-tool-codex-audit.log"
+  sanitize_prompts: true
+  block_credential_paths: true
+  credential_path_patterns:
+    - "~/.ssh/**"
+    - "~/.aws/**"
+    - "~/.snowflake/**"
+    - "**/.env"
+    - "**/.env.*"
+    - "**/credentials.json"
+    - "**/credentials.yaml"
+  cache_dir: "/tmp/cortexcode-tool-cache"  # Use /tmp for Codex compatibility
+  cache_ttl: 3600
+
+cortex:
+  connection_name: "default"
+  default_envelope: "RW"
+  session_history_limit: 3
+
+ide:
+  targets:
+    - "cursor"
+    - "vscode"
+
+logging:
+  level: "INFO"
+  format: "json"
+  file: "/tmp/cortexcode-tool-codex.log"
