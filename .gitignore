@@ -36,3 +36,7 @@ audit.log
 
 # OS
 Thumbs.db
+# Coverage reports
+.coverage
+htmlcov/
+.pytest_cache/
