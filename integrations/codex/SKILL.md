@@ -63,16 +63,12 @@ Choose an envelope based on the task:
 **With approval_mode: "auto" (default in config.yaml), execute directly:**
 
 ```bash
-python3 /Users/tjia/.codex/skills/cortex-code/scripts/execute_cortex.py \
+bash /Users/tjia/.codex/skills/cortex-code/scripts/execute_cortex_codex.sh \
   --prompt "USER_PROMPT_HERE" \
-  --envelope RO \
-  --output-file "/tmp/codex-cortex-latest.json"
-
-# After completion (10-20 seconds), read results:
-cat /tmp/codex-cortex-latest.json | python3 -c "import sys, json; r=json.load(sys.stdin); print(r['final_result'])"
+  --envelope RO
 ```
 
-**Note**: Using --output-file with a fixed path works around Codex CLI backgrounding. The script writes results to /tmp/codex-cortex-latest.json which you can read after completion.
+**Note**: The wrapper script execute_cortex_codex.sh handles Codex CLI backgrounding. It runs execute_cortex.py, waits for completion, reads the result file, and outputs the final answer. Takes 10-20 seconds.
 
 ### 5. Present results back in Codex
 
