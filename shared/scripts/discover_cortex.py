@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Discovers Cortex Code capabilities by listing skills and parsing their metadata.
-Caches results for the current CodingAgent session.
+Caches results for the current Codex session.
 """
 
 import argparse
@@ -46,34 +46,20 @@ def discover_cortex_skills():
     # Parse skill list output
     skills = {}
 
-    # Handles two formats:
-    # Old format: "skill-name /path/to/skill"
-    # New format (v1.0.5.6+):
-    #   [BUNDLED]
-    #    - skill-name: /path/to/skill
+    # Expected format: skill lines with name and path
     for line in stdout.strip().split('\n'):
         if not line.strip():
             continue
 
-        # Skip section headers like [BUNDLED], [PROJECT], [GLOBAL]
-        if re.match(r'^\[.*\]$', line.strip()):
-            continue
-
-        # New format: "  - skill-name: /path/to/skill"
-        new_format_match = re.match(r'^\s*-\s+(\S+?):\s+', line)
-        if new_format_match:
-            skill_name = new_format_match.group(1).strip()
-        else:
-            # Old format: "skill-name /path/to/skill"
-            parts = line.split()
-            if not parts:
-                continue
+        # Try to extract skill name (usually first word or before colon)
+        parts = line.split()
+        if parts:
             skill_name = parts[0].strip(':').strip()
 
-        # Read the skill's SKILL.md to get description and triggers
-        skill_info = read_skill_metadata(skill_name)
-        if skill_info:
-            skills[skill_name] = skill_info
+            # Read the skill's SKILL.md to get description and triggers
+            skill_info = read_skill_metadata(skill_name)
+            if skill_info:
+                skills[skill_name] = skill_info
 
     return skills
 
@@ -172,8 +158,13 @@ def main():
     if args.cache_dir:
         cache_dir = args.cache_dir
     else:
+        # Auto-detect config from script location
+        script_dir = Path(__file__).parent
+        skill_dir = script_dir.parent
+        config_path = skill_dir / "config.yaml"
+
         # Get default from config
-        config_manager = ConfigManager()
+        config_manager = ConfigManager(config_path=config_path if config_path.exists() else None)
         cache_dir_str = config_manager.get("security.cache_dir")
         cache_dir = Path(cache_dir_str).expanduser()
 

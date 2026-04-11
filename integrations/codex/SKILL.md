@@ -16,32 +16,28 @@ Only Snowflake-specific operations go to Cortex Code. Everything else stays in C
 
 ## How to use this skill
 
-When this skill triggers, follow this workflow exactly:
+When this skill triggers, follow these steps **in separate commands** (do not chain with &&):
 
-### 1. Discover Cortex capabilities (REQUIRED on first use)
-
-**Always run this first** to cache Cortex skill capabilities:
+### Step 1: Discover Cortex capabilities (run once per session)
 
 ```bash
-python3 scripts/discover_cortex.py
+cd /Users/tjia/.codex/skills/cortex-code && python3 scripts/discover_cortex.py
 ```
 
-This discovers available Cortex skills and caches them to `/tmp/cortex-skill-cache/` for routing decisions.
+Wait for this to complete before proceeding.
 
-### 2. Route the user request
-
-Analyze the user prompt before acting:
+### Step 2: Route the user request
 
 ```bash
-python3 scripts/route_request.py --prompt "USER_PROMPT_HERE"
+cd /Users/tjia/.codex/skills/cortex-code && python3 scripts/route_request.py --prompt "USER_PROMPT_HERE"
 ```
 
-Interpret the routing result as:
-- `cortex` → delegate to Cortex Code
-- `codex` → handle locally in Codex
-- `blocked` → do not execute; explain why and ask for a safer reformulation if needed
+Interpret the result:
+- `cortex` → proceed to Step 4
+- `codex` → proceed to Step 3  
+- `blocked` → explain to user
 
-### 3. If routed to Codex
+### Step 3: If routed to Codex
 
 Handle the request directly using Codex tools and normal local workflow. Do not invoke Cortex.
 
@@ -52,23 +48,23 @@ Typical Codex-handled requests include:
 - general Python, JavaScript, shell, or infrastructure work
 - non-Snowflake databases
 
-### 4. If routed to Cortex
+### Step 4: If routed to Cortex
 
-Choose an envelope based on the task:
-- `RO` for read-only or query operations
-- `RW` for changes in Snowflake-managed objects
-- `RESEARCH` for exploratory work
-- `DEPLOY` only for high-trust deployment-style operations
+Choose envelope based on the task:
+- `RO` - read-only queries (SHOW, SELECT)  
+- `RW` - data changes (INSERT, UPDATE, CREATE)
+- `RESEARCH` - exploratory analysis
+- `DEPLOY` - full access (use cautiously)
 
-**With `approval_mode: "auto"` (default in config.yaml), execute directly:**
+Execute with explicit cd to avoid path issues:
 
 ```bash
-python3 scripts/execute_cortex.py --prompt "USER_PROMPT_HERE" --envelope RO
+cd /Users/tjia/.codex/skills/cortex-code && python3 scripts/execute_cortex.py --prompt "USER_PROMPT_HERE" --envelope RO
 ```
 
-**IMPORTANT**: Run synchronously (NOT in background terminal) - takes 10-20 seconds.
+**CRITICAL FOR CODEX**: This command takes 10-20 seconds. Do NOT chain it with other commands using &&. Run it as a standalone command and wait for it to complete. The script streams output as it executes.
 
-### 5. Present results back in Codex
+### Step 5: Present results back to user
 
 After Cortex finishes:
 - summarize the result clearly for the user
