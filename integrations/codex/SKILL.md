@@ -60,17 +60,13 @@ Choose an envelope based on the task:
 - `RESEARCH` for exploratory work
 - `DEPLOY` only for high-trust deployment-style operations
 
-Preferred execution path:
-
-```bash
-python3 scripts/security_wrapper.py --prompt "USER_PROMPT_HERE" --envelope '{"mode":"RO"}'
-```
-
-If the wrapper is not needed for the current run, execute directly:
+**With `approval_mode: "auto"` (default in config.yaml), execute directly:**
 
 ```bash
 python3 scripts/execute_cortex.py --prompt "USER_PROMPT_HERE" --envelope RO
 ```
+
+**IMPORTANT FOR CODEX**: Run this command **synchronously** (NOT in background terminal). It takes 10-20 seconds and streams output as it executes. Background execution will cause the process to hang without capturing results.
 
 ### 5. Present results back in Codex
 
@@ -108,6 +104,7 @@ Optional org policy path:
 
 ## Notes for Codex
 
+- **CRITICAL**: Run execute_cortex.py synchronously, NOT in background terminal. Background execution prevents proper output capture.
 - Treat `codex` as the local-handling route.
 - Do not route local file operations to Cortex.
 - Do not send credential files, local secrets, or unrelated repo context to Cortex.
