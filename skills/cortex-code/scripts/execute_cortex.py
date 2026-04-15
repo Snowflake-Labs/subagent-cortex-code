@@ -9,8 +9,6 @@ import json
 import subprocess
 import sys
 import argparse
-import threading
-import time
 from typing import List, Dict, Optional
 
 
@@ -64,26 +62,19 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
     Returns:
         Dictionary with execution results
     """
-    # Build command with programmatic auto-approval mode.
-    # --input-format stream-json enables headless auto-approval of all tool calls
-    # (including snowflake_sql_execute and MCP tools) without --bypass or
-    # --dangerously-allow-all-tool-calls which may be blocked by org policy.
-    # stdin=DEVNULL (set below) delivers immediate EOF so Cortex auto-approves
-    # instead of waiting for interactive approval responses on stdin.
-    # Envelope security is enforced via --disallowed-tools blocklist.
-    # NOTE: Do NOT add --allowed-tools here — it creates a pattern-match whitelist
-    # that blocks Snowflake MCP tools like sql_execute (Bug #3 fix from main branch).
-    # --no-mcp: --input-format stream-json eagerly initializes ALL configured MCP
-    # servers at startup (unlike interactive mode which defers them). External MCP
-    # servers that are slow or unreachable (e.g. glean) block the entire headless
-    # session. Cortex's Snowflake tools (snowflake_sql_execute, data_diff) are
-    # built-in — not MCP — so --no-mcp is safe for all Snowflake operations.
+    # Build command with headless auto-approval mode.
+    # --bypass auto-approves all tool calls without interactive prompts.
+    # --output-format stream-json streams NDJSON events for real-time parsing.
+    # NOTE: --input-format stream-json does NOT work for headless execution —
+    # it conflicts with -p and hangs after the init event (tool calls never fire).
+    # NOTE: Do NOT add --allowed-tools — it creates a pattern-match whitelist
+    # that blocks Snowflake MCP tools like sql_execute.
+    # Security is enforced via --disallowed-tools blocklist instead.
     cmd = [
         "cortex",
         "-p", prompt,
         "--output-format", "stream-json",
-        "--input-format", "stream-json",
-        "--no-mcp",
+        "--bypass",
     ]
 
     # Add connection if specified
@@ -91,7 +82,7 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
         cmd.extend(["-c", connection])
 
     # Build disallowed tools list for envelope security.
-    # --input-format stream-json (set above) auto-approves all non-blocked tools.
+    # --bypass auto-approves all non-blocked tools.
     # --disallowed-tools enforces the security boundary.
     final_disallowed_tools = disallowed_tools or []
 
@@ -138,7 +129,7 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
         for tool in final_disallowed_tools:
             cmd.extend(["--disallowed-tools", tool])
 
-    debug_cmd = f"cortex -p \"...\" --output-format stream-json --input-format stream-json"
+    debug_cmd = f"cortex -p \"...\" --output-format stream-json --bypass"
     if connection:
         debug_cmd += f" -c {connection}"
     if final_disallowed_tools:
@@ -146,9 +137,6 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
     print(debug_cmd, file=sys.stderr)
 
     try:
-        # stdin=DEVNULL is critical: --input-format stream-json puts Cortex in
-        # programmatic mode. EOF on stdin signals auto-approval so Cortex proceeds
-        # immediately without waiting for interactive approval responses.
         process = subprocess.Popen(
             cmd,
             stdout=subprocess.PIPE,
@@ -166,35 +154,8 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
             "error": None
         }
 
-        # Timeout handling: Cortex can hang at MCP server init (e.g. glean MCP
-        # failing to connect blocks the session). Track time since last event —
-        # if no new event arrives within the deadline, kill the process.
-        INIT_TIMEOUT = 30   # seconds to wait for first event (session init)
-        IDLE_TIMEOUT = 120  # seconds to wait between events once running
-        last_event_time = time.time()
-        got_init = False
-
-        def timeout_watchdog():
-            """Kill cortex if it stops producing events (MCP hang detection)."""
-            while process.poll() is None:
-                elapsed = time.time() - last_event_time
-                limit = IDLE_TIMEOUT if got_init else INIT_TIMEOUT
-                if elapsed > limit:
-                    print(
-                        f"Error: Cortex timed out after {elapsed:.0f}s with no output "
-                        f"(MCP server connection issue?). Killing process.",
-                        file=sys.stderr
-                    )
-                    process.kill()
-                    return
-                time.sleep(1)
-
-        watchdog = threading.Thread(target=timeout_watchdog, daemon=True)
-        watchdog.start()
-
         # Read streaming output
         for line in process.stdout:
-            last_event_time = time.time()
             if not line.strip():
                 continue
 
@@ -207,7 +168,6 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
                 # Extract session ID
                 if event_type == "system" and event.get("subtype") == "init":
                     results["session_id"] = event.get("session_id")
-                    got_init = True
                     print(f"→ Started Cortex session: {results['session_id']}", file=sys.stderr)
 
                 # Handle assistant responses
@@ -218,13 +178,12 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
                     for item in content:
                         if item.get("type") == "text":
                             text = item.get("text", "")
-                            # Print to stdout so Claude Code reads the actual response
-                            print(text)
+                            print(text)  # stdout — Claude Code reads this
                             print(f"[Cortex] {text}", file=sys.stderr)
 
                         elif item.get("type") == "tool_use":
                             tool_name = item.get("name")
-                            print(f"[Cortex tool: {tool_name}]", file=sys.stderr)
+                            print(f"[Cortex] Using tool: {tool_name}", file=sys.stderr)
 
                 # Handle permission requests (via user messages with tool_result containing denials)
                 elif event_type == "user":
@@ -244,7 +203,7 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
                 # Handle final result
                 elif event_type == "result":
                     results["final_result"] = event.get("result")
-                    print(f"[Cortex result captured]", file=sys.stderr)
+                    print(f"[Cortex] Result: {event.get('result')}", file=sys.stderr)
 
             except json.JSONDecodeError as e:
                 print(f"Warning: Failed to parse line: {line[:100]}... Error: {e}", file=sys.stderr)
@@ -299,14 +258,8 @@ def main():
         allowed_tools=args.allowed_tools
     )
 
-    # Output minimal status JSON to stdout (full events go to stderr for debug)
-    # The Cortex text responses were already printed to stdout above.
-    status = {
-        "session_id": results.get("session_id"),
-        "success": results.get("error") is None,
-        "error": results.get("error")
-    }
-    print(json.dumps(status))
+    # Output results as JSON
+    print(json.dumps(results, indent=2))
 
     # Exit with appropriate code
     if results.get("error"):
