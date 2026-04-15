@@ -100,7 +100,7 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
 
     elif approval_mode in ["envelope_only", "auto"]:
         # Envelope-only or auto mode: apply envelope-based security via blocklist.
-        # --input-format stream-json (set above) auto-approves all non-blocked tools.
+        # --bypass (set above) auto-approves all non-blocked tools.
         envelope_tools = []
         if envelope == "RO":
             # Read-only: block all write operations
