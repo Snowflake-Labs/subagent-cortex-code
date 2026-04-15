@@ -1,383 +1,124 @@
-# Cortex Code Integration for Cursor IDE
+# Cortex Code Skill — Cursor Setup
 
-A Cursor skill that enables seamless Snowflake operations through Cortex Code CLI, providing specialized Snowflake expertise directly in your IDE.
+Enables Cursor to route Snowflake queries to Cortex Code CLI automatically.
 
-## 🎯 What This Does
+## Prerequisites
 
-This skill allows Cursor IDE to leverage Cortex Code's specialized Snowflake capabilities:
-- **Execute SQL queries** on Snowflake databases
-- **Data quality checks** and validation
-- **Schema exploration** and analysis
-- **Cortex AI features** (Cortex Search, Analyst, ML functions)
-- **Snowpark operations** and dynamic tables
-- **Security and governance** queries
+- Cursor IDE
+- Cortex Code CLI installed and configured (`which cortex` should return a path)
+- Active Snowflake connection in Cortex (`cortex connections list`)
 
-## 📋 Prerequisites
+## Install
 
-Before installing this skill, ensure you have:
-
-1. **Cursor IDE** installed
-2. **Cortex Code CLI** installed and configured
-   ```bash
-   # Verify cortex CLI is available
-   cortex --version
-   ```
-3. **Snowflake connection** configured in Cortex
-   ```bash
-   # Test your Snowflake connection
-   cortex -p "SHOW DATABASES" --input-format stream-json
-   ```
-4. **Python 3.8+** installed
-   ```bash
-   python3 --version
-   ```
-
-## 🚀 Installation
-
-### Step 1: Install the Skill
-
-Clone the Cortex Code integration repository and run the installation script:
+**Step 1 — Install the skill via npx:**
 
 ```bash
-# Clone the repository
-git clone https://github.com/Snowflake-Labs/subagent-cortex-code.git
-cd subagent-cortex-code
-
-# Run the installation script
-cd integrations/cursor
-./install.sh
+npx skills add snowflake-labs/subagent-cortex-code --copy --global
 ```
 
-This will:
-- Copy shared scripts and security modules to `~/.cursor/skills/cortex-code/`
-- Parameterize for Cursor environment
-- Make scripts executable
+This installs the skill to `~/.cursor/skills/cortex-code/`.
 
-### Step 2: Set Up Automatic Routing (Optional)
-
-For automatic Snowflake query detection, add routing rules to your project:
+**Step 2 — Activate the Cursor routing rule:**
 
 ```bash
-# Copy the template to your project root
-cp /path/to/subagent-cortex-code/integrations/cursor/.cursorrules.template /path/to/your/project/.cursorrules
+mkdir -p ~/.cursor/rules
+cp ~/.cursor/skills/cortex-code/cortex-snowflake-routing.mdc ~/.cursor/rules/
 ```
 
-Or manually create `.cursorrules` in your project root with:
+**Step 3 — Restart Cursor.**
 
-```markdown
-# Snowflake and Cortex Routing - Direct Skill Invocation
+That's it. Cursor will now automatically route Snowflake questions to Cortex Code.
 
-When the user asks about Snowflake, databases, warehouses, Cortex, or data operations, you MUST use the cortex-code skill directly by invoking:
+---
+
+## What the routing rule does
+
+The rule (`cortex-snowflake-routing.mdc`) instructs Cursor to invoke `/cortex-code` whenever you ask about Snowflake, SQL, or Cortex topics — without you needing to type the slash command.
+
+**Without rule:** you type `/cortex-code how many databases do I have?`
+
+**With rule:** you type `how many databases do I have?` and Cursor invokes the skill automatically.
+
+### Rule content (copy-paste if you prefer manual setup)
+
+Create `~/.cursor/rules/cortex-snowflake-routing.mdc`:
 
 ```
-/cortex-code
-```
+---
+description: Route Snowflake queries to the cortex-code skill for specialized Snowflake expertise via Cortex Code CLI
+globs:
+alwaysApply: true
+---
+
+# Snowflake Query Routing
+
+When the user asks about Snowflake, databases, warehouses, Cortex, or SQL queries, invoke the cortex-code skill with conversation context.
+
+/cortex-code [user's question with relevant context]
 
 ## Detection Keywords
 
 Invoke `/cortex-code` when user mentions:
 - Snowflake, warehouse, database, schema, table, view
-- SQL query, SELECT, data quality, data analysis
+- SQL, query, SELECT, data quality, data analysis
 - Cortex Search, Cortex Analyst, Cortex AI
 - Snowpark, dynamic tables, streams, tasks
 - "how many databases", "show me", "query", "check data"
+
+## How to Invoke
+
+1. **Detect Snowflake query**
+2. **Include context**: If there were previous Snowflake-related exchanges in this conversation, include that context
+3. **Invoke skill**: Call `/cortex-code` with enriched query
+4. **Display results**: Show output from Cortex Code agent
+
+## Examples
+
+**Standalone query:**
+User: "How many databases do I have in Snowflake?"
+You: /cortex-code How many databases do I have in Snowflake?
+
+**Query with context:**
+User: "Which databases have stock data?" → [answered: DB_STOCK, FINANCE__ECONOMICS]
+User: "Show me the schema for the main table"
+You: /cortex-code User previously identified databases with stock data: DB_STOCK, FINANCE__ECONOMICS. Show me the schema for the main table in DB_STOCK.
+
+## Important
+
+- Do NOT answer Snowflake questions yourself
+- ALWAYS invoke `/cortex-code` skill
+- Include prior conversation context when relevant
+- The skill handles: Cortex routing, SQL execution, formatting
+
+## Non-Snowflake Queries
+
+Handle normally without skill:
+- General programming questions
+- Local file operations
+- Git operations
+- Non-Snowflake databases (PostgreSQL, MySQL, etc.)
 ```
 
-### Step 3: Restart Cursor
+---
 
-Restart Cursor IDE to load the new skill.
-
-### Step 4: Verify Installation
-
-1. Open Cursor IDE
-2. Open the AI chat window
-3. Type `/cortex-code` - you should see the skill in the autocomplete
-4. Or type a Snowflake query and the skill should auto-invoke (if you set up .cursorrules)
-
-## 💡 Usage
-
-### Direct Invocation
-
-Use the `/cortex-code` command followed by your question:
-
-```
-/cortex-code How many databases do I have in Snowflake?
-```
-
-```
-/cortex-code Show me top 10 customers by revenue
-```
-
-```
-/cortex-code Check data quality for SALES_DATA table
-```
-
-### Automatic Invocation
-
-With `.cursorrules` configured, just ask naturally:
-
-```
-User: How many databases do I have?
-```
-
-The skill will automatically invoke and route to Cortex Code.
-
-### Multi-Turn Conversations
-
-The skill enriches context automatically for follow-up questions:
-
-```
-User: Which databases have stock data?
-Agent: [uses /cortex-code, identifies DB_STOCK, FINANCE_ECONOMICS]
-
-User: Show me the schema for the main table
-Agent: [uses /cortex-code with context: "User previously identified databases..."]
-```
-
-## 🏗️ Architecture
-
-```
-┌─────────────────┐
-│   Cursor IDE    │
-│   (AI Chat)     │
-└────────┬────────┘
-         │
-         │ /cortex-code "query"
-         ▼
-┌─────────────────────────────┐
-│   Cortex Code Skill         │
-│   (~/.cursor/skills/)       │
-├─────────────────────────────┤
-│ 1. Build enriched context   │
-│ 2. Route request            │
-│ 3. Execute via CLI          │
-└────────┬────────────────────┘
-         │
-         │ python3 scripts/execute_cortex.py
-         ▼
-┌─────────────────────────────┐
-│   Cortex Code CLI           │
-│   (headless mode)           │
-├─────────────────────────────┤
-│ - Stream-JSON format        │
-│ - Auto-approval mode        │
-│ - RW envelope               │
-└────────┬────────────────────┘
-         │
-         │ snowflake_sql_execute
-         ▼
-┌─────────────────────────────┐
-│   Snowflake Database        │
-└─────────────────────────────┘
-```
-
-## 📁 File Structure
-
-```
-skill/
-├── SKILL.md                    # Skill definition (Cursor format)
-├── scripts/
-│   ├── execute_cortex.py      # Main execution script
-│   ├── route_request.py       # Routing logic
-│   ├── discover_cortex.py     # Capability discovery
-│   ├── predict_tools.py       # Tool prediction
-│   ├── read_cortex_sessions.py # Session reading
-│   └── security_wrapper.py    # Security wrapper
-└── security/                   # Security modules (if present)
-```
-
-## 🔧 Configuration
-
-### Security Envelope
-
-The skill uses `RW` (Read-Write) envelope by default. Modify in `SKILL.md`:
+## Verify installation
 
 ```bash
---envelope "RO"   # Read-only operations
---envelope "RW"   # Read-write operations (default)
+# Skill installed
+ls ~/.cursor/skills/cortex-code/SKILL.md
+
+# Routing rule active
+ls ~/.cursor/rules/cortex-snowflake-routing.mdc
 ```
 
-### Approval Mode
+## Troubleshooting
 
-Set to `auto` for non-interactive execution. Modify in `SKILL.md`:
+**Skill not found in Cursor:** Restart Cursor after install.
 
+**Cortex hangs or no output:** Check your Cortex connection is active:
 ```bash
---approval-mode "auto"    # Auto-approve (with audit logging)
---approval-mode "prompt"  # Prompt for each operation
+cortex connections list
+cortex -p "SHOW DATABASES;" --bypass --output-format stream-json
 ```
 
-### Audit Logging
-
-Executions are logged to:
-```
-~/.cursor/skills/cortex-code/audit.log
-```
-
-## 🆚 Cursor vs Claude Code CLI
-
-| Feature | Cursor Skill | Claude Code CLI |
-|---------|--------------|-----------------|
-| **Interface** | IDE chat window | Terminal CLI |
-| **Invocation** | `/cortex-code` | `claude -p "..."` |
-| **Context Enrichment** | Manual (via skill instructions) | Automatic (memory + chat history) |
-| **Installation** | `~/.cursor/skills/` | `~/.claude/skills/` |
-| **Routing** | `.cursorrules` | Skill description |
-| **Approval** | Auto (headless) | Auto or prompt |
-| **Audit Logs** | `~/.cursor/skills/cortex-code/audit.log` | `~/.claude/skills/cortex-code/audit.log` |
-| **Best For** | IDE-based workflows | CLI-based workflows |
-
-## 🐛 Troubleshooting
-
-### Skill Not Found
-
-```
-Error: /cortex-code skill not found
-```
-
-**Solution**:
-1. Verify skill installation: `ls ~/.cursor/skills/cortex-code/SKILL.md`
-2. Restart Cursor IDE
-3. Check skill file name is `SKILL.md` (uppercase)
-
-### Cortex CLI Not Found
-
-```
-Error: cortex: command not found
-```
-
-**Solution**:
-1. Install Cortex Code CLI
-2. Verify: `which cortex`
-3. Ensure `cortex` is in your PATH
-
-### Connection Errors
-
-```
-Error: Failed to connect to Snowflake
-```
-
-**Solution**:
-1. Check Cortex configuration: `cortex --config`
-2. Test connection: `cortex -p "SHOW DATABASES" --input-format stream-json`
-3. Verify Snowflake credentials
-
-### Permission Denied
-
-```
-Error: Permission denied: scripts/execute_cortex.py
-```
-
-**Solution**:
-```bash
-chmod +x ~/.cursor/skills/cortex-code/scripts/*.py
-```
-
-### Python Import Errors
-
-```
-Error: No module named 'xyz'
-```
-
-**Solution**:
-```bash
-# Install required dependencies
-pip3 install anthropic pyyaml requests
-```
-
-## 📊 Examples
-
-### Query Databases
-
-```
-/cortex-code How many databases do I have in Snowflake?
-```
-
-**Output**:
-```
-Executing SQL: SELECT COUNT(*) FROM SNOWFLAKE.INFORMATION_SCHEMA.DATABASES
-Result: 12 databases
-```
-
-### Data Quality Check
-
-```
-/cortex-code Check data quality for SALES_DATA table
-```
-
-**Output**:
-```
-Data Quality Report for SALES_DATA:
-- Total rows: 1,234,567
-- Null rates: CUSTOMER_ID (0%), ORDER_DATE (0.1%), AMOUNT (0%)
-- Duplicates: 5 duplicate ORDER_IDs found
-- Data types: All columns match expected types
-```
-
-### Complex Query with Context
-
-```
-User: Which databases have stock data?
-Agent: Found 2 databases: DB_STOCK, FINANCE_ECONOMICS
-
-User: Show me the top 5 tables in DB_STOCK by row count
-Agent: [automatically includes context: "User previously identified DB_STOCK"]
-```
-
-## 🤝 Contributing
-
-Issues and pull requests welcome at the repository.
-
-## 📄 License
-
-MIT License - see LICENSE file for details.
-
-## 🔗 Related Projects
-
-- **Cortex Code CLI**: https://github.com/anthropics/cortex-code
-- **Cursor IDE**: https://cursor.com
-- **Cursor Skills Documentation**: https://cursor.com/docs/skills
-
-## 📮 Support
-
-For issues specific to:
-- **This skill**: Open an issue in this repository
-- **Cortex Code CLI**: Check Cortex Code documentation
-- **Cursor IDE**: Check Cursor documentation
-
-## ⚙️ Advanced Configuration
-
-### Custom Routing Logic
-
-Edit `scripts/route_request.py` to customize routing logic:
-
-```python
-def analyze_with_llm_logic(query: str, capabilities: Dict) -> Tuple[str, float]:
-    # Add custom routing logic here
-    pass
-```
-
-### Custom Tool Prediction
-
-Edit `scripts/predict_tools.py` to customize tool prediction:
-
-```python
-def predict_tools(query: str) -> List[str]:
-    # Add custom tool prediction logic here
-    pass
-```
-
-### Custom Security Rules
-
-Edit `scripts/security_wrapper.py` to add custom security rules:
-
-```python
-def check_credential_allowlist(query: str) -> Dict:
-    # Add custom security checks here
-    pass
-```
-
-## 🎓 Learning Resources
-
-- **Snowflake Documentation**: https://docs.snowflake.com
-- **Cortex AI Features**: https://docs.snowflake.com/en/user-guide/snowflake-cortex
-- **Cursor Skills Guide**: https://cursor.com/docs/skills
+**Rule not auto-triggering:** Confirm the `.mdc` file is in `~/.cursor/rules/` (global) not just in `~/.cursor/skills/cortex-code/`.
