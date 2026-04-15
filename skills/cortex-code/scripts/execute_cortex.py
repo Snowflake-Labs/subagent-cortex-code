@@ -9,6 +9,8 @@ import json
 import subprocess
 import sys
 import argparse
+import threading
+import time
 from typing import List, Dict, Optional
 
 
@@ -71,11 +73,17 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
     # Envelope security is enforced via --disallowed-tools blocklist.
     # NOTE: Do NOT add --allowed-tools here — it creates a pattern-match whitelist
     # that blocks Snowflake MCP tools like sql_execute (Bug #3 fix from main branch).
+    # --no-mcp: --input-format stream-json eagerly initializes ALL MCP servers at
+    # startup (unlike interactive mode which defers them). Any slow/unreachable MCP
+    # server (e.g. glean) blocks the entire session. Since Cortex's own Snowflake
+    # tools (snowflake_sql_execute, data_diff) are built-in, not MCP, --no-mcp is
+    # safe for Snowflake operations and avoids the eager-init hang.
     cmd = [
         "cortex",
         "-p", prompt,
         "--output-format", "stream-json",
         "--input-format", "stream-json",
+        "--no-mcp",
     ]
 
     # Add connection if specified
@@ -158,8 +166,35 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
             "error": None
         }
 
+        # Timeout handling: Cortex can hang at MCP server init (e.g. glean MCP
+        # failing to connect blocks the session). Track time since last event —
+        # if no new event arrives within the deadline, kill the process.
+        INIT_TIMEOUT = 30   # seconds to wait for first event (session init)
+        IDLE_TIMEOUT = 120  # seconds to wait between events once running
+        last_event_time = time.time()
+        got_init = False
+
+        def timeout_watchdog():
+            """Kill cortex if it stops producing events (MCP hang detection)."""
+            while process.poll() is None:
+                elapsed = time.time() - last_event_time
+                limit = IDLE_TIMEOUT if got_init else INIT_TIMEOUT
+                if elapsed > limit:
+                    print(
+                        f"Error: Cortex timed out after {elapsed:.0f}s with no output "
+                        f"(MCP server connection issue?). Killing process.",
+                        file=sys.stderr
+                    )
+                    process.kill()
+                    return
+                time.sleep(1)
+
+        watchdog = threading.Thread(target=timeout_watchdog, daemon=True)
+        watchdog.start()
+
         # Read streaming output
         for line in process.stdout:
+            last_event_time = time.time()
             if not line.strip():
                 continue
 
@@ -172,6 +207,7 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
                 # Extract session ID
                 if event_type == "system" and event.get("subtype") == "init":
                     results["session_id"] = event.get("session_id")
+                    got_init = True
                     print(f"→ Started Cortex session: {results['session_id']}", file=sys.stderr)
 
                 # Handle assistant responses
