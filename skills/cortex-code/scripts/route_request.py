@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-LLM-based routing logic to determine if request should go to Cortex Code or the local agent.
+LLM-based routing logic to determine if request should go to Cortex Code or CodingAgent.
 Uses semantic understanding rather than simple keyword matching.
 """
 
@@ -26,8 +26,8 @@ SNOWFLAKE_INDICATORS = [
     "stream", "task", "stage", "pipe"
 ]
 
-# Non-Snowflake indicators (handle locally with the current coding agent)
-LOCAL_AGENT_INDICATORS = [
+# Non-Snowflake indicators (route to CodingAgent)
+CODING_AGENT_INDICATORS = [
     "local file", "git", "github", "commit", "push", "pull request",
     "python script", "javascript", "react", "frontend", "backend",
     "postgres", "mysql", "mongodb", "redis",
@@ -64,13 +64,12 @@ def analyze_with_llm_logic(prompt, capabilities):
     """
     Analyze prompt using LLM-inspired logic.
     This is a deterministic approximation of what an LLM would consider.
-    Returns "cortex" for Snowflake operations, "coding_agent" to handle locally.
     """
     prompt_lower = prompt.lower()
 
     # Score based on indicators
     snowflake_score = 0
-    local_score = 0
+    coding_agent_score = 0
 
     # Check for explicit Snowflake/Cortex mentions
     for indicator in SNOWFLAKE_INDICATORS:
@@ -78,9 +77,9 @@ def analyze_with_llm_logic(prompt, capabilities):
             snowflake_score += 3 if indicator in ["snowflake", "cortex"] else 1
 
     # Check for non-Snowflake indicators
-    for indicator in LOCAL_AGENT_INDICATORS:
+    for indicator in CODING_AGENT_INDICATORS:
         if indicator in prompt_lower:
-            local_score += 2
+            coding_agent_score += 2
 
     # Check against Cortex skill triggers
     for skill_name, skill_info in capabilities.items():
@@ -98,7 +97,7 @@ def analyze_with_llm_logic(prompt, capabilities):
             snowflake_score += 3
         else:
             # Generic SQL, likely not Snowflake
-            local_score += 1
+            coding_agent_score += 1
 
     # Data-related terms (ambiguous, need context)
     data_terms = ["data quality", "schema", "table", "database", "query"]
@@ -110,14 +109,14 @@ def analyze_with_llm_logic(prompt, capabilities):
             snowflake_score += 2
 
     # Calculate confidence
-    total_score = snowflake_score + local_score
+    total_score = snowflake_score + coding_agent_score
     if total_score == 0:
-        # No strong indicators — handle locally (safe default)
+        # No strong indicators, default to CodingAgent for safety
         return "coding_agent", 0.5
 
-    confidence = max(snowflake_score, local_score) / total_score
+    confidence = max(snowflake_score, coding_agent_score) / total_score
 
-    if snowflake_score > local_score:
+    if snowflake_score > coding_agent_score:
         return "cortex", confidence
     else:
         return "coding_agent", confidence
@@ -132,7 +131,7 @@ def check_credential_allowlist(
     Check if prompt contains credential file paths from the allowlist.
 
     This function runs before routing analysis to block prompts that reference
-    credential files, regardless of whether they would be routed to Cortex or handled locally.
+    credential files, regardless of whether they would be routed to Cortex or Claude.
 
     Args:
         prompt: User prompt to check
@@ -188,7 +187,7 @@ def check_credential_allowlist(
 
 def main():
     """Main routing function."""
-    parser = argparse.ArgumentParser(description="Route request to Cortex or local agent")
+    parser = argparse.ArgumentParser(description="Route request to Cortex or Claude Code")
     parser.add_argument("--prompt", required=True, help="User prompt to analyze")
     parser.add_argument("--config", help="Path to user config file")
     parser.add_argument("--org-policy", help="Path to organization policy file")

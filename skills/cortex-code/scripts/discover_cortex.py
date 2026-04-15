@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Discovers Cortex Code capabilities by listing skills and parsing their metadata.
-Caches results for the current Claude Code session.
+Caches results for the current CodingAgent session.
 """
 
 import argparse
