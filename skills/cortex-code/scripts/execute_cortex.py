@@ -73,17 +73,11 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
     # Envelope security is enforced via --disallowed-tools blocklist.
     # NOTE: Do NOT add --allowed-tools here — it creates a pattern-match whitelist
     # that blocks Snowflake MCP tools like sql_execute (Bug #3 fix from main branch).
-    # --no-mcp: --input-format stream-json eagerly initializes ALL MCP servers at
-    # startup (unlike interactive mode which defers them). Any slow/unreachable MCP
-    # server (e.g. glean) blocks the entire session. Since Cortex's own Snowflake
-    # tools (snowflake_sql_execute, data_diff) are built-in, not MCP, --no-mcp is
-    # safe for Snowflake operations and avoids the eager-init hang.
     cmd = [
         "cortex",
         "-p", prompt,
         "--output-format", "stream-json",
         "--input-format", "stream-json",
-        "--no-mcp",
     ]
 
     # Add connection if specified
