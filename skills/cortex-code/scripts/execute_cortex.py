@@ -66,22 +66,25 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
     # --input-format stream-json enables headless auto-approval of all tool calls
     # (including snowflake_sql_execute and MCP tools) without --bypass or
     # --dangerously-allow-all-tool-calls which may be blocked by org policy.
+    # stdin=DEVNULL (set below) delivers immediate EOF so Cortex auto-approves
+    # instead of waiting for interactive approval responses on stdin.
     # Envelope security is enforced via --disallowed-tools blocklist.
+    # NOTE: Do NOT add --allowed-tools here — it creates a pattern-match whitelist
+    # that blocks Snowflake MCP tools like sql_execute (Bug #3 fix from main branch).
     cmd = [
         "cortex",
         "-p", prompt,
         "--output-format", "stream-json",
-        "--input-format", "stream-json"
+        "--input-format", "stream-json",
     ]
 
     # Add connection if specified
     if connection:
         cmd.extend(["-c", connection])
 
-    # Step 1: Handle approval mode — build disallowed tools list for envelope security.
-    # Note: --input-format stream-json auto-approves tools; --disallowed-tools
-    # enforces the security boundary. Do NOT use --allowed-tools: it creates an
-    # "must match pattern" check that blocks Snowflake MCP tools.
+    # Build disallowed tools list for envelope security.
+    # --input-format stream-json (set above) auto-approves all non-blocked tools.
+    # --disallowed-tools enforces the security boundary.
     final_disallowed_tools = disallowed_tools or []
 
     if approval_mode == "prompt":
@@ -135,9 +138,9 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
     print(debug_cmd, file=sys.stderr)
 
     try:
-        # Start process. stdin=DEVNULL is critical: --input-format stream-json
-        # puts Cortex in programmatic mode but it must not wait on stdin for
-        # approval responses — closing it lets auto-approval proceed immediately.
+        # stdin=DEVNULL is critical: --input-format stream-json puts Cortex in
+        # programmatic mode. EOF on stdin signals auto-approval so Cortex proceeds
+        # immediately without waiting for interactive approval responses.
         process = subprocess.Popen(
             cmd,
             stdout=subprocess.PIPE,
@@ -178,11 +181,14 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
 
                     for item in content:
                         if item.get("type") == "text":
-                            print(f"[Cortex] {item.get('text', '')}", file=sys.stderr)
+                            text = item.get("text", "")
+                            # Print to stdout so Claude Code reads the actual response
+                            print(text)
+                            print(f"[Cortex] {text}", file=sys.stderr)
 
                         elif item.get("type") == "tool_use":
                             tool_name = item.get("name")
-                            print(f"[Cortex] Using tool: {tool_name}", file=sys.stderr)
+                            print(f"[Cortex tool: {tool_name}]", file=sys.stderr)
 
                 # Handle permission requests (via user messages with tool_result containing denials)
                 elif event_type == "user":
@@ -202,7 +208,7 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
                 # Handle final result
                 elif event_type == "result":
                     results["final_result"] = event.get("result")
-                    print(f"[Cortex] Result: {event.get('result')}", file=sys.stderr)
+                    print(f"[Cortex result captured]", file=sys.stderr)
 
             except json.JSONDecodeError as e:
                 print(f"Warning: Failed to parse line: {line[:100]}... Error: {e}", file=sys.stderr)
@@ -257,8 +263,14 @@ def main():
         allowed_tools=args.allowed_tools
     )
 
-    # Output results as JSON
-    print(json.dumps(results, indent=2))
+    # Output minimal status JSON to stdout (full events go to stderr for debug)
+    # The Cortex text responses were already printed to stdout above.
+    status = {
+        "session_id": results.get("session_id"),
+        "success": results.get("error") is None,
+        "error": results.get("error")
+    }
+    print(json.dumps(status))
 
     # Exit with appropriate code
     if results.get("error"):
