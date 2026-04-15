@@ -1,19 +1,39 @@
-# Claude Code Skill: Cortex Code Integration
+# Cortex Code Skill
 
-This skill enables Claude Code to leverage Cortex Code's specialized Snowflake expertise by intelligently routing Snowflake-related operations to Cortex Code CLI in headless mode.
+[![npm skills](https://img.shields.io/badge/skills-cortex--code-blue)](https://www.npmjs.com/package/skills)
+
+This skill routes Snowflake-related operations to Cortex Code CLI, enabling any coding agent to leverage specialized Snowflake expertise in headless mode.
+
+## Quick Install
+
+```bash
+# Works with Claude Code, Cursor, Codex, and 40+ coding agents
+npx skills add snowflake-labs/subagent-cortex-code --copy
+
+# Prerequisite: Cortex Code CLI
+which cortex  # must be installed and configured
+```
+
+> **Manual install** (per-agent scripts with backup/uninstall support):
+> ```bash
+> bash integrations/claude-code/install.sh   # Claude Code
+> bash integrations/cursor/install.sh        # Cursor
+> bash integrations/codex/install.sh         # Codex
+> bash integrations/cli-tool/install.sh      # CLI tool
+> ```
 
 ## Overview
 
-The Cortex Code Integration Skill bridges Claude Code and Cortex Code CLI, allowing seamless delegation of Snowflake-specific tasks while maintaining Claude Code's general-purpose capabilities.
+The Cortex Code Integration Skill bridges coding agents and Cortex Code CLI, allowing seamless delegation of Snowflake-specific tasks while maintaining the agent's general-purpose capabilities.
 
 **Key Features:**
-- 🎯 **Smart Routing**: LLM-based semantic routing automatically detects Snowflake operations
-- 🔒 **Security Envelopes**: Configurable permission models (RO, RW, RESEARCH, DEPLOY, NONE)
-- 🛡️ **Approval Modes**: Three security modes (prompt/auto/envelope_only) for different trust levels
-- 🔐 **Prompt Sanitization**: Automatic PII removal and injection attempt detection
-- 📊 **Context Enrichment**: Passes conversation history to Cortex for informed execution
-- 📝 **Audit Logging**: Structured JSONL logs for compliance and monitoring
-- 🏢 **Enterprise Ready**: Organization policy override for centralized security management
+- **Smart Routing**: LLM-based semantic routing automatically detects Snowflake operations
+- **Security Envelopes**: Configurable permission models (RO, RW, RESEARCH, DEPLOY, NONE)
+- **Approval Modes**: Three security modes (prompt/auto/envelope_only) for different trust levels
+- **Prompt Sanitization**: Automatic PII removal and injection attempt detection
+- **Context Enrichment**: Passes conversation history to Cortex for informed execution
+- **Audit Logging**: Structured JSONL logs for compliance and monitoring
+- **Enterprise Ready**: Organization policy override for centralized security management
 
 ## Background
 
@@ -37,7 +57,7 @@ Choose the security level that matches your needs:
 | **auto** | Medium | Automated workflows | Auto-execute with audit logging |
 | **envelope_only** | Medium | Trusted environments | Auto-execute, faster (no tool prediction) |
 
-**Configure in** `~/.claude/skills/cortex-code/config.yaml`:
+**Configure in** `config.yaml` in the skill's install directory:
 ```yaml
 security:
   approval_mode: "prompt"  # or "auto" or "envelope_only"

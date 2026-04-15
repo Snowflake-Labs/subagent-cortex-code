@@ -1,13 +1,30 @@
-# Cortex Code Integration — Reference Documentation
+---
+name: cortex-code
+description: Routes Snowflake-related operations to Cortex Code CLI for specialized Snowflake expertise. Use when user asks about Snowflake databases, data warehouses, SQL queries on Snowflake, Cortex AI features, Snowpark, dynamic tables, data governance in Snowflake, Snowflake security, or mentions "Cortex" explicitly. Do NOT use for general programming, local file operations, non-Snowflake databases, web development, or infrastructure tasks unrelated to Snowflake.
+metadata:
+  author: Snowflake Integration Team
+  version: "1.0.0"
+  compatibility: Requires Cortex Code CLI installed and configured
+---
 
-> **Installing?** Use: `npx skills add snowflake-labs/subagent-cortex-code --copy`
-> This installs from `skills/cortex-code/` which is the universal, agent-agnostic skill.
+# Cortex Code Integration Skill
 
-This skill enables Claude Code to leverage Cortex Code's specialized Snowflake expertise by intelligently routing Snowflake-related operations to Cortex Code CLI in headless mode.
+## Install
+
+```bash
+# Install via npm skills ecosystem (works with Claude Code, Cursor, Codex, and 40+ agents)
+npx skills add snowflake-labs/subagent-cortex-code --copy
+
+# Prerequisite: Cortex Code CLI must be installed and configured
+# See: https://docs.snowflake.com/en/user-guide/cortex-code
+which cortex  # verify installation
+```
+
+This skill enables your coding agent to leverage Cortex Code's specialized Snowflake expertise by intelligently routing Snowflake-related operations to Cortex Code CLI in headless mode.
 
 ## Architecture Overview
 
-**Routing Principle**: ONLY Snowflake operations → Cortex Code. Everything else → Claude Code.
+**Routing Principle**: ONLY Snowflake operations → Cortex Code. Everything else → your coding agent.
 
 **Key Components**:
 - Dynamic skill discovery at session initialization
@@ -53,7 +70,7 @@ The skill includes a security wrapper around Cortex execution with three approva
 
 ## Session Initialization
 
-When this skill is first loaded in a Claude Code session:
+When this skill is first loaded:
 
 ### Step 1: Discover Cortex Capabilities
 ```bash
@@ -95,7 +112,7 @@ This script:
   - Data governance, data quality, or security in Snowflake context
   - User explicitly mentions "Cortex" or "Snowflake"
 
-- **Route to Claude Code** if request involves:
+- **Route to your coding agent** if request involves:
   - Local file operations (reading, writing, editing local files)
   - General programming (Python, JavaScript, etc. not Snowflake-specific)
   - Non-Snowflake databases (PostgreSQL, MySQL, MongoDB, etc.)
@@ -105,8 +122,8 @@ This script:
 
 ### Step 2: Execute Based on Routing Decision
 
-#### If routed to Claude Code:
-Handle the request directly using Claude Code's built-in capabilities. No Cortex involvement.
+#### If routing is `coding_agent` (handle locally):
+Handle the request directly using your agent's built-in capabilities. No Cortex involvement.
 
 #### If routed to Cortex Code:
 Proceed to Step 3.
@@ -176,7 +193,7 @@ This reads the most recent Cortex session files from `~/.local/share/cortex/sess
 
 **Enriched Prompt Format**:
 ```
-# Context from Claude Code Session
+# Context from Current Session
 [Recent relevant conversation history]
 
 # Recent Cortex Work
@@ -230,7 +247,7 @@ The security wrapper handles permission management through:
 
 ### Step 7: Return Results to User
 
-Format Cortex's output for Claude Code context:
+Format Cortex's output for the current session:
 - Show SQL query results in readable format
 - Display any generated artifacts
 - Report success/failure status
@@ -254,7 +271,7 @@ Format Cortex's output for Claude Code context:
 ### Example 2: Local File Operation
 **User says**: "Read the config.json file in this directory"
 
-**Routing**: → Claude Code (local file operation)
+**Routing**: → your coding agent (local file operation)
 
 **Claude Action**: Uses Read tool directly, no Cortex involvement.
 
@@ -299,7 +316,7 @@ When using auto or envelope_only modes:
 Each Cortex invocation is stateless. Context must be explicitly provided via enriched prompts.
 
 ### Memory Boundaries
-- **Claude Code maintains**: Full conversation history, user preferences, project context
+- **Your coding agent maintains**: Full conversation history, user preferences, project context
 - **Cortex Code receives**: Only task-specific context for current operation
 - **Cortex sessions are read**: For historical context enrichment only
 
@@ -311,7 +328,7 @@ Choose envelopes based on operation risk:
 4. **Use NONE with custom blocklist**: When fine-grained control is needed
 
 ### Performance Considerations
-- Cortex skill discovery runs once per Claude Code session (cached)
+- Cortex skill discovery runs once per session (cached)
 - Each Cortex execution adds ~2-5 seconds latency
 - Use routing wisely to minimize unnecessary Cortex calls
 
@@ -388,7 +405,7 @@ grep audit_log_path config.yaml
 
 **Solution**: Ensure both `--output-format stream-json` AND `--input-format stream-json` are present. The input format flag is what enables programmatic auto-approval mode. The security wrapper handles this automatically.
 
-### Issue: Routing sends Snowflake query to Claude Code
+### Issue: Routing sends Snowflake query to your coding agent
 **Cause**: Routing logic didn't detect Snowflake keywords
 
 **Solution**:
