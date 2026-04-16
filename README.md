@@ -4,7 +4,7 @@ This skill enables Claude Code to leverage Cortex Code's specialized Snowflake e
 
 ## Overview
 
-The Cortex Code Integration Skill bridges Claude Code and Cortex Code CLI, allowing seamless delegation of Snowflake-specific tasks while maintaining Claude Code's general-purpose capabilities.
+The Cortex Code Integration Skill bridges Claude Code and the Cortex Code CLI, invoking Cortex Code as a subprocess for Snowflake-specific tasks while Claude Code handles everything else.
 
 **Key Features:**
 - 🎯 **Smart Routing**: LLM-based semantic routing automatically detects Snowflake operations
@@ -21,7 +21,7 @@ AI coding assistants excel as generalists, but domain expertise matters. Ask Cla
 
 Snowflake has that specialist: **Cortex Code**, an AI agent trained on Snowflake's entire technical stack. It knows the quirks of Snowflake's metadata views, when to use dynamic tables versus streams, and can debug semantic view configurations from institutional knowledge.
 
-This skill bridges both agents using a **multi-agent harness pattern**: Claude Code acts as the orchestrator (managing conversation, routing, general tasks), while Cortex Code runs as a specialized agent (invoked only for Snowflake operations, executing autonomously, streaming results back). From the user's perspective, it's one conversation. Behind the scenes, two specialists collaborate — each in their domain of expertise.
+This project is packaged as a **Claude Code skill** — a `SKILL.md` that Claude Code loads into the current session when the description matches. When the routing layer classifies a request as Snowflake-related, the skill invokes the Cortex Code CLI in headless mode as a subprocess, streams its output back into the conversation, and applies security controls. From the user's perspective, it's one conversation; behind the scenes, Claude Code hands Snowflake work to a specialist CLI and renders the results inline.
 
 ## Security Features
 
