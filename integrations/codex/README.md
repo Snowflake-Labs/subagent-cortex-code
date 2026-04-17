@@ -39,7 +39,14 @@ Expected: the tool runs for 30–90 seconds, then prints formatted results.
 
 ## Usage from Codex
 
-Codex calls `cortexcode-tool` as a foreground command:
+**First time**: paste these into a Codex session to confirm the tool is discoverable:
+
+```
+which cortexcode-tool
+cortexcode-tool --help
+```
+
+Then use it as a foreground command:
 
 ```bash
 cortexcode-tool "your question" --envelope RO
