@@ -12,7 +12,7 @@ Enables Claude Code to route Snowflake queries to Cortex Code CLI automatically.
 ## Install
 
 ```bash
-npx skills add snowflake-labs/subagent-cortex-code --copy
+npx skills add snowflake-labs/subagent-cortex-code --copy --global
 ```
 
 This installs `skills/cortex-code/` from this repo to `~/.claude/skills/cortex-code/`.

@@ -10,8 +10,8 @@ Choose your coding agent:
 
 | Agent | Install method | Details |
 |-------|---------------|---------|
-| **Claude Code** | `npx skills add snowflake-labs/subagent-cortex-code --copy` | [→ Claude Code](#claude-code) |
-| **Cursor** | `npx skills add snowflake-labs/subagent-cortex-code --copy` + copy routing rule | [→ Cursor](#cursor) |
+| **Claude Code** | `npx skills add snowflake-labs/subagent-cortex-code --copy --global` | [→ Claude Code](#claude-code) |
+| **Cursor** | `npx skills add snowflake-labs/subagent-cortex-code --copy --global` + copy routing rule | [→ Cursor](#cursor) |
 | **Codex** | `bash integrations/codex/install.sh` | [→ Codex](#codex) |
 | **VSCode / terminal** | `bash integrations/cli-tool/setup.sh` | [→ CLI tool](#vscode--terminal) |
 
@@ -28,7 +28,7 @@ cortex connections list   # must show an active connection
 Install the skill via `npx`:
 
 ```bash
-npx skills add snowflake-labs/subagent-cortex-code --copy
+npx skills add snowflake-labs/subagent-cortex-code --copy --global
 ```
 
 This installs `skills/cortex-code/` from this repo to `~/.claude/skills/cortex-code/`.
@@ -55,15 +55,15 @@ See [`integrations/claude-code/README.md`](integrations/claude-code/README.md) f
 
 **Step 1 — Install the skill:**
 ```bash
-npx skills add snowflake-labs/subagent-cortex-code --copy
+npx skills add snowflake-labs/subagent-cortex-code --copy --global
 ```
 
-This installs `skills/cortex-code/` to `~/.cursor/skills/cortex-code/`.
+This installs `skills/cortex-code/` to `~/.agents/skills/cortex-code/` (Cursor's universal skill directory).
 
 **Step 2 — Activate the auto-routing rule:**
 ```bash
 mkdir -p ~/.cursor/rules
-cp ~/.cursor/skills/cortex-code/cortex-snowflake-routing.mdc ~/.cursor/rules/
+cp ~/.agents/skills/cortex-code/cortex-snowflake-routing.mdc ~/.cursor/rules/
 ```
 
 **Step 3 — Restart Cursor.**
@@ -72,7 +72,7 @@ Without the routing rule you type `/cortex-code your question`. With it, Cursor 
 
 **Verify:**
 ```bash
-ls ~/.cursor/skills/cortex-code/SKILL.md
+ls ~/.agents/skills/cortex-code/SKILL.md
 ls ~/.cursor/rules/cortex-snowflake-routing.mdc
 ```
 

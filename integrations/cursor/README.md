@@ -16,13 +16,13 @@ Enables Cursor to route Snowflake queries to Cortex Code CLI automatically.
 npx skills add snowflake-labs/subagent-cortex-code --copy --global
 ```
 
-This installs the skill to `~/.cursor/skills/cortex-code/`.
+This installs the skill to `~/.agents/skills/cortex-code/` (Cursor's universal skill directory).
 
 **Step 2 — Activate the Cursor routing rule:**
 
 ```bash
 mkdir -p ~/.cursor/rules
-cp ~/.cursor/skills/cortex-code/cortex-snowflake-routing.mdc ~/.cursor/rules/
+cp ~/.agents/skills/cortex-code/cortex-snowflake-routing.mdc ~/.cursor/rules/
 ```
 
 **Step 3 — Restart Cursor.**
@@ -105,7 +105,7 @@ Handle normally without skill:
 
 ```bash
 # Skill installed
-ls ~/.cursor/skills/cortex-code/SKILL.md
+ls ~/.agents/skills/cortex-code/SKILL.md
 
 # Routing rule active
 ls ~/.cursor/rules/cortex-snowflake-routing.mdc
@@ -121,4 +121,4 @@ cortex connections list
 cortex -p "SHOW DATABASES;" --bypass --output-format stream-json
 ```
 
-**Rule not auto-triggering:** Confirm the `.mdc` file is in `~/.cursor/rules/` (global) not just in `~/.cursor/skills/cortex-code/`.
+**Rule not auto-triggering:** Confirm the `.mdc` file is in `~/.cursor/rules/` (global) not just in `~/.agents/skills/cortex-code/`.
