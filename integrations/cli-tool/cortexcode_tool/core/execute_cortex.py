@@ -188,7 +188,6 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
 
                         elif item.get("type") == "tool_use":
                             tool_name = item.get("name")
-                            print(f"[{tool_name}]", flush=True)  # stdout progress — keeps Codex foreground
                             print(f"[Cortex] Using tool: {tool_name}", file=sys.stderr)
 
                 # Handle permission requests (via user messages with tool_result containing denials)
