@@ -46,17 +46,17 @@ which cortexcode-tool
 cortexcode-tool --help
 ```
 
-Then use it as a foreground command:
+Once discovered, Codex will invoke `cortexcode-tool` for Snowflake questions automatically. You can be explicit or implicit — both work:
 
 ```bash
-cortexcode-tool "your question" --envelope RO
+# Explicit
+cortexcode-tool "How many databases do I have in Snowflake?"
+
+# Implicit — Codex detects the Snowflake intent and calls cortexcode-tool on its own
+How many databases do I have in Snowflake?
 ```
 
-Choose envelope based on operation:
-- `RO` — read-only queries (safe default)
-- `RW` — data modifications or writes
-- `RESEARCH` — exploratory work
-- `DEPLOY` — full access
+No need to specify `--envelope` in your prompts. Codex selects the appropriate envelope based on the operation.
 
 Do **not** background the command (`& disown`). Codex automatically waits for foreground commands to complete (30–90 seconds is normal).
 

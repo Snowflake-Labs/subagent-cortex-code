@@ -109,9 +109,13 @@ which cortexcode-tool
 cortexcode-tool --help
 ```
 
-Then:
-```bash
-cortexcode-tool "your question" --envelope RO
+Once discovered, Codex invokes `cortexcode-tool` for Snowflake questions automatically. Both explicit and implicit prompts work — no `--envelope` needed:
+```
+# Explicit
+cortexcode-tool "How many databases do I have in Snowflake?"
+
+# Implicit — Codex detects Snowflake intent and calls cortexcode-tool on its own
+How many databases do I have in Snowflake?
 ```
 
 See [`integrations/codex/README.md`](integrations/codex/README.md) for full details.
