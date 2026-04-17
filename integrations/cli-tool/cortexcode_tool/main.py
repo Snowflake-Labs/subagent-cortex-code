@@ -231,18 +231,11 @@ def main(argv: Optional[List[str]] = None) -> int:
 
             target = args.generate_ide_config
 
-            # Check for deprecated cursor target
-            if target in ["cursor", "all"]:
-                print("⚠️  WARNING: Cursor integration has changed!")
-                print("   Cursor now uses the Claude Code skill (~/.claude/skills/cortex-code/)")
-                print("   instead of the standalone CLI tool for better integration.")
-                print()
-                print("   For Cursor, manually configure: .cursor/rules/cortexcode-tool.mdc")
-                print("   See project README for details.")
-                print()
-                if target == "cursor":
-                    return 1
-                # If "all", continue with VSCode generation
+            # Cursor uses npx skills add (not this CLI tool) — skip silently
+            if target == "cursor":
+                return 0
+            if target == "all":
+                pass  # Continue with VSCode generation
 
             # TODO: Implement VSCode config generation
             if target in ["vscode", "all"]:
