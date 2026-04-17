@@ -23,7 +23,7 @@
 - [ ] **Step 1: Create directory structure**
 
 ```bash
-cd /Users/tjia/Documents/Code/CortexCode/subagent-cortex-code
+cd /Users/<username>/Documents/Code/CortexCode/subagent-cortex-code
 mkdir -p tests/shared/unit
 mkdir -p tests/shared/integration
 mkdir -p tests/shared/regression

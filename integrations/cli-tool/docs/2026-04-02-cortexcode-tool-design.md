@@ -82,7 +82,7 @@ User views results in IDE terminal
    - Note: VSCode/Windsurf users invoke tool manually (only one approval point)
 
 3. **Independent Installation**
-   - Development: `/Users/tjia/Documents/Code/CortexCode/cortexcode-tool/`
+   - Development: `/Users/<username>/Documents/Code/CortexCode/cortexcode-tool/`
    - Installed: `~/.local/bin/cortexcode-tool` (preferred, no sudo required) or `/usr/local/bin/cortexcode-tool`
    - Configuration: `~/.config/cortexcode-tool/config.yaml`
    - Audit logs: `~/.config/cortexcode-tool/audit.log`
@@ -128,7 +128,7 @@ User views results in IDE terminal
 ### Project Layout
 
 ```
-/Users/tjia/Documents/Code/CortexCode/cortexcode-tool/
+/Users/<username>/Documents/Code/CortexCode/cortexcode-tool/
 ├── cortexcode_tool/
 │   ├── __init__.py
 │   ├── main.py                        # CLI entry point
@@ -877,7 +877,7 @@ After invalidation, fresh discovery triggered automatically.
 
 2. **Development Setup** (optional, for contributors)
    ```bash
-   git clone <repo-url> /Users/tjia/Documents/Code/CortexCode/cortexcode-tool
+   git clone <repo-url> /Users/<username>/Documents/Code/CortexCode/cortexcode-tool
    cd cortexcode-tool
    ```
 

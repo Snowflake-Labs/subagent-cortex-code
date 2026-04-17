@@ -215,7 +215,7 @@ def mock_cortex_capabilities():
 - [ ] **Step 4: Verify directory structure**
 
 ```bash
-cd /Users/tjia/Documents/Code/CortexCode/cortexcode-tool
+cd /Users/<username>/Documents/Code/CortexCode/cortexcode-tool
 ls -la cortexcode_tool/
 ls -la tests/
 cat config.yaml.example | head -20
@@ -347,7 +347,7 @@ def test_config_manager_validation_invalid_approval_mode(temp_config_dir):
 - [ ] **Step 4: Run tests**
 
 ```bash
-cd /Users/tjia/Documents/Code/CortexCode/cortexcode-tool
+cd /Users/<username>/Documents/Code/CortexCode/cortexcode-tool
 pytest tests/security/test_config_manager.py -v
 ```
 
@@ -2306,7 +2306,7 @@ Expected: All 6 tests pass
 - [ ] **Step 5: Test CLI manually**
 
 ```bash
-cd /Users/tjia/Documents/Code/CortexCode/cortexcode-tool
+cd /Users/<username>/Documents/Code/CortexCode/cortexcode-tool
 python -m cortexcode_tool.main --version
 python -m cortexcode_tool.main --help
 ```
@@ -2452,7 +2452,7 @@ chmod +x setup.sh
 - [ ] **Step 2: Test installation script (dry run)**
 
 ```bash
-cd /Users/tjia/Documents/Code/CortexCode/cortexcode-tool
+cd /Users/<username>/Documents/Code/CortexCode/cortexcode-tool
 cat setup.sh | head -50
 ```
 

@@ -33,7 +33,7 @@ Codex CLI
 ### Development copy
 
 ```text
-/Users/tjia/Documents/Code/Codex/CoCo_skill
+/Users/<username>/Documents/Code/Codex/CoCo_skill
 ```
 
 Use this folder to edit and maintain the skill.
@@ -69,24 +69,24 @@ This is the setup that makes plain `codex` route its model inference to Snowflak
 Expected token file:
 
 ```text
-~/.snowflake/snowhouse_token
+~/.snowflake/snowflake_token
 ```
 
 Make sure it exists and is readable only by your user:
 
 ```bash
-ls -l ~/.snowflake/snowhouse_token
-chmod 600 ~/.snowflake/snowhouse_token
+ls -l ~/.snowflake/snowflake_token
+chmod 600 ~/.snowflake/snowflake_token
 ```
 
-### 1.2 Configure your shell to export `SNOWHOUSE_PAT`
+### 1.2 Configure your shell to export `SNOWFLAKE_PAT`
 
 Add this to `~/.zshrc`:
 
 ```bash
 # Snowhouse PAT for Codex Cortex inference
-if [ -f "$HOME/.snowflake/snowhouse_token" ]; then
-  export SNOWHOUSE_PAT="$(cat "$HOME/.snowflake/snowhouse_token")"
+if [ -f "$HOME/.snowflake/snowflake_token" ]; then
+  export SNOWFLAKE_PAT="$(cat "$HOME/.snowflake/snowflake_token")"
 fi
 ```
 
@@ -114,8 +114,8 @@ web_search = "disabled"
 
 [model_providers.sfc]
 name = "OpenAI"
-base_url = "https://snowhouse.snowflakecomputing.com/api/v2/cortex/v1"
-env_key = "SNOWHOUSE_PAT"
+base_url = "https://<your-account>.snowflakecomputing.com/api/v2/cortex/v1"
+env_key = "SNOWFLAKE_PAT"
 wire_api = "responses"
 
 [memories]
@@ -137,10 +137,10 @@ codex
 You should **not** need to type:
 
 ```bash
-env OPENAI_API_KEY="$(cat ~/.snowflake/snowhouse_token)" codex
+env OPENAI_API_KEY="$(cat ~/.snowflake/snowflake_token)" codex
 ```
 
-That older workaround is no longer necessary if `SNOWHOUSE_PAT` is configured correctly.
+That older workaround is no longer necessary if `SNOWFLAKE_PAT` is configured correctly.
 
 ---
 
@@ -153,7 +153,7 @@ This is the skill that lets Codex route Snowflake-specific work to the local `co
 The maintained development copy lives here:
 
 ```text
-/Users/tjia/Documents/Code/Codex/CoCo_skill
+/Users/<username>/Documents/Code/Codex/CoCo_skill
 ```
 
 This directory now contains:
@@ -169,7 +169,7 @@ Sync the development copy into the global Codex skills folder:
 
 ```bash
 rsync -a --delete --exclude 'backups' \
-  /Users/tjia/Documents/Code/Codex/CoCo_skill/ \
+  /Users/<username>/Documents/Code/Codex/CoCo_skill/ \
   ~/.codex/skills/cortex-code/
 ```
 
@@ -190,8 +190,8 @@ codex
 If Codex fails with a `401 Unauthorized` related to Snowhouse, check:
 
 - `~/.codex/config.toml`
-- `SNOWHOUSE_PAT` in your shell
-- `~/.snowflake/snowhouse_token`
+- `SNOWFLAKE_PAT` in your shell
+- `~/.snowflake/snowflake_token`
 
 ### 3.2 Verify the local `cortex` CLI exists
 
@@ -330,7 +330,7 @@ This setup intentionally keeps a **close match** to the working Claude skill, wi
 ### Snowhouse token
 
 ```text
-~/.snowflake/snowhouse_token
+~/.snowflake/snowflake_token
 ```
 
 ### Shell profile
@@ -348,7 +348,7 @@ This setup intentionally keeps a **close match** to the working Claude skill, wi
 ### Development copy
 
 ```text
-/Users/tjia/Documents/Code/Codex/CoCo_skill
+/Users/<username>/Documents/Code/Codex/CoCo_skill
 ```
 
 ---
@@ -359,13 +359,13 @@ When you want to edit the skill:
 
 1. Make changes in:
    ```text
-   /Users/tjia/Documents/Code/Codex/CoCo_skill
+   /Users/<username>/Documents/Code/Codex/CoCo_skill
    ```
 2. Verify the files locally.
 3. Sync them into the installed global skill:
    ```bash
    rsync -a --delete --exclude 'backups' \
-     /Users/tjia/Documents/Code/Codex/CoCo_skill/ \
+     /Users/<username>/Documents/Code/Codex/CoCo_skill/ \
      ~/.codex/skills/cortex-code/
    ```
 4. Restart Codex.
@@ -380,7 +380,7 @@ When you want to edit the skill:
 Likely causes:
 
 - invalid or wrong Snowhouse token
-- `SNOWHOUSE_PAT` not exported
+- `SNOWFLAKE_PAT` not exported
 - wrong `env_key` in `~/.codex/config.toml`
 - expired or mismatched Snowhouse PAT
 
@@ -388,7 +388,7 @@ Check:
 
 ```bash
 source ~/.zshrc
-echo "$SNOWHOUSE_PAT" | head -c 20
+echo "$SNOWFLAKE_PAT" | head -c 20
 sed -n '1,80p' ~/.codex/config.toml
 ```
 
@@ -459,7 +459,7 @@ If everything is configured correctly:
 - the development source of truth remains:
 
 ```text
-/Users/tjia/Documents/Code/Codex/CoCo_skill
+/Users/<username>/Documents/Code/Codex/CoCo_skill
 ```
 
 and the installed copy remains:

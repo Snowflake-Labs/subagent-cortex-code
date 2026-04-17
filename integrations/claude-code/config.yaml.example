@@ -300,5 +300,5 @@ security:
 # - docs/superpowers/specs/2026-04-01-cortex-code-security-hardening-design.md
 #
 # Support:
-# - GitHub Issues: https://github.com/sfc-gh-tjia/claude_skill_cortexcode/issues
+# - GitHub Issues: https://github.com/snowflake-labs/subagent-cortex-code/issues
 # - Security: security@snowflake.com
