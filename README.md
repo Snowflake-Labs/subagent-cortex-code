@@ -58,12 +58,12 @@ See [`integrations/claude-code/README.md`](integrations/claude-code/README.md) f
 npx skills add snowflake-labs/subagent-cortex-code --copy --global
 ```
 
-This installs `skills/cortex-code/` to `~/.agents/skills/cortex-code/` (Cursor's universal skill directory).
+This installs `skills/cortex-code/` to `~/.cursor/skills-cursor/cortex-code/`.
 
 **Step 2 — Activate the auto-routing rule:**
 ```bash
 mkdir -p ~/.cursor/rules
-cp ~/.agents/skills/cortex-code/cortex-snowflake-routing.mdc ~/.cursor/rules/
+cp ~/.cursor/skills-cursor/cortex-code/cortex-snowflake-routing.mdc ~/.cursor/rules/
 ```
 
 **Step 3 — Restart Cursor.**
@@ -72,7 +72,7 @@ Without the routing rule you type `/cortex-code your question`. With it, Cursor 
 
 **Verify:**
 ```bash
-ls ~/.agents/skills/cortex-code/SKILL.md
+ls ~/.cursor/skills-cursor/cortex-code/SKILL.md
 ls ~/.cursor/rules/cortex-snowflake-routing.mdc
 ```
 
