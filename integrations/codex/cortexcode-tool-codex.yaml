@@ -1,5 +1,6 @@
 # Cortexcode Tool Configuration for Codex CLI
-# Uses /tmp/ paths to avoid Codex sandbox restrictions
+# Installed to ~/.agents/skills/cortex-code/config.yaml by install.sh
+# Audit/log go to /tmp — writable in Codex sandbox without requiring user approval
 
 security:
   approval_mode: "auto"  # Auto-approve for non-interactive CLI usage
@@ -14,18 +15,13 @@ security:
     - "**/.env.*"
     - "**/credentials.json"
     - "**/credentials.yaml"
-  cache_dir: "/tmp/cortexcode-tool-cache"  # Use /tmp for Codex compatibility
+  cache_dir: "/tmp/cortexcode-tool-cache"
   cache_ttl: 3600
 
 cortex:
   connection_name: "default"
   default_envelope: "RW"
   session_history_limit: 3
-
-ide:
-  targets:
-    - "cursor"
-    - "vscode"
 
 logging:
   level: "INFO"

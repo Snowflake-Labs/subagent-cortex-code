@@ -3,6 +3,10 @@
 
 set -e
 
+# Always run from the script's own directory so relative paths work correctly
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
 echo "==> Installing cortexcode-tool..."
 
 # Check prerequisites
@@ -54,11 +58,11 @@ cp -r cortexcode_tool "$INSTALL_DIR/"
 # Create executable wrapper
 echo "Creating executable..."
 cat > "$BIN_DIR/cortexcode-tool" << EOF
-#!/usr/bin/env python3
-import sys
-sys.path.insert(0, '$INSTALL_DIR')
-from cortexcode_tool.main import main
-sys.exit(main())
+#!/bin/bash
+# PYTHONUNBUFFERED=1 ensures stdout flushes immediately even when redirected to a file.
+# Without this, Python buffers output and the file is empty if the process is killed early.
+export PYTHONUNBUFFERED=1
+exec python3 -c "import sys; sys.path.insert(0, '$INSTALL_DIR'); from cortexcode_tool.main import main; sys.exit(main())" "\$@"
 EOF
 
 # Make executable

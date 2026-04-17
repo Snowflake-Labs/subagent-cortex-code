@@ -1,311 +1,129 @@
-# Cortex Code Skill for Codex
+# Cortex Code for Codex — CLI Install
 
-This repository contains a **Codex skill** named `cortex-code` that helps Codex route Snowflake-specific tasks to the local **Cortex Code CLI**.
+Enables Codex to run Snowflake queries via the `cortexcode-tool` CLI.
 
-This README covers the **skill only**.
-It does **not** cover configuring Codex model inference through Snowflake / Corvo.
+Codex does not use a skill directory for this integration. Instead, `cortexcode-tool` is installed as a standalone CLI that Codex calls directly as a foreground command.
 
----
+## Why CLI instead of skill?
 
-## What this skill does
-
-The `cortex-code` skill gives Codex a structured workflow for Snowflake-related tasks such as:
-
-- listing Snowflake databases, schemas, tables, and warehouses
-- writing or explaining Snowflake SQL
-- working with Snowpark, Cortex, dynamic tables, streams, and tasks
-- handling Snowflake governance and security topics
-- routing specialized Snowflake operations to the local `cortex` CLI
-
-Codex remains the main assistant and orchestrator. The skill helps Codex decide when to invoke `cortex` for Snowflake-specialized work.
-
----
-
-## What this skill does not do
-
-This skill does not:
-
-- configure Codex’s model provider
-- configure Snowflake / Corvo inference for Codex itself
-- replace the local `cortex` CLI
-- replace your Snowflake connection setup
-
-You still need a working local `cortex` installation and a valid Snowflake/Cortex connection.
-
----
+Codex's sandbox blocks the interactive approval prompts that `cortex -p` requires without `--bypass`. The `cortexcode-tool` wraps `cortex` with `--bypass` and `approval_mode: auto`, making it safe and reliable in non-TTY environments. Codex calls it as a single foreground command and automatically waits for it to complete.
 
 ## Prerequisites
 
-Before using this skill, make sure:
+- Codex CLI installed
+- Cortex Code CLI installed and configured (`which cortex` should return a path)
+- Active Snowflake connection (`cortex connections list`)
+- Python 3.8+
 
-- Codex CLI is installed
-- Cortex Code CLI is installed
-- `cortex` works in your shell
-- your local `cortex` CLI is already configured to connect to Snowflake
-
-Quick checks:
+## Install
 
 ```bash
-which cortex
-cortex --version
-cortex skill list
-```
-
----
-
-## Install the skill into Codex
-
-Clone the Cortex Code integration repository and run the installation script:
-
-```bash
-# Clone the repository
 git clone https://github.com/Snowflake-Labs/subagent-cortex-code.git
 cd subagent-cortex-code
-
-# Run the installation script
-cd integrations/codex
-./install.sh
+bash integrations/codex/install.sh
 ```
 
-This will:
-- Copy shared scripts and security modules to `~/.codex/skills/cortex-code/`
-- Parameterize for Codex environment
-- Create default configuration if not exists
-- Make scripts executable
+The script:
+1. Installs `cortexcode-tool` CLI to `~/.local/bin/` (via `integrations/cli-tool/setup.sh`)
+2. Auto-detects your active Cortex connection from `cortex connections list`
+3. Writes config to `~/.config/cortexcode-tool/config.yaml` (auto-detected — no `--config` flag needed)
 
-Then restart Codex.
-
----
-
-## Verify Codex sees the skill
-
-In a fresh Codex session, ask:
-
-```text
-which skill do you have
-```
-
-You should see:
-
-```text
-cortex-code
-```
-
-If you do not see it:
-
-- confirm the installed folder exists at `~/.codex/skills/cortex-code`
-- restart Codex
-- make sure `SKILL.md` exists inside the installed folder
-
----
-
-## How the skill works
-
-### 1. Skill trigger
-
-The skill should be relevant for prompts such as:
-
-- `how many db i have in snowflake`
-- `show my Snowflake warehouses`
-- `create a table in DB_stock.public called tmp_to_drop`
-- `help me write a Snowpark query`
-
-### 2. Routing
-
-The skill uses:
-
-```text
-scripts/route_request.py
-```
-
-to classify requests into:
-
-- `cortex`
-- `codex`
-- `blocked`
-
-### 3. Execution paths
-
-There are two main execution paths.
-
-#### Security wrapper
+## Verify
 
 ```bash
-python3 scripts/security_wrapper.py --prompt "USER_PROMPT_HERE" --envelope '{"mode":"RO"}'
+cortexcode-tool --version
+cortexcode-tool "How many databases do I have in Snowflake?" --envelope RO
 ```
 
-Use the wrapper when you want the full skill security flow.
+Expected: the tool runs for 30–90 seconds, then prints formatted results.
 
-#### Direct executor
+## Usage from Codex
+
+Codex calls `cortexcode-tool` as a foreground command:
 
 ```bash
-python3 scripts/execute_cortex.py --prompt "USER_PROMPT_HERE" --envelope RO
+cortexcode-tool "your question" --envelope RO
 ```
 
-Use the direct executor when you want to invoke Cortex directly.
+Choose envelope based on operation:
+- `RO` — read-only queries (safe default)
+- `RW` — data modifications or writes
+- `RESEARCH` — exploratory work
+- `DEPLOY` — full access
 
----
+Do **not** background the command (`& disown`). Codex automatically waits for foreground commands to complete (30–90 seconds is normal).
 
-## Important envelope syntax
+## What gets installed
 
-The two commands do **not** use the same envelope syntax.
+```
+~/.local/bin/cortexcode-tool          # CLI entry point
+~/.local/lib/cortexcode-tool/         # Python package
+~/.config/cortexcode-tool/config.yaml # Config (auto-detected by the tool)
+```
 
-### Wrapper syntax
+Config example:
+```yaml
+security:
+  approval_mode: "auto"
+  audit_log_path: "/tmp/cortexcode-tool-codex-audit.log"
+  cache_dir: "/tmp/cortexcode-tool-cache"
 
-Use JSON:
+cortex:
+  connection_name: "your-connection-name"
+  default_envelope: "RW"
+
+logging:
+  file: "/tmp/cortexcode-tool-codex.log"
+```
+
+Audit/log paths use `/tmp/` to avoid Codex sandbox permission issues. The config itself lives at `~/.config/cortexcode-tool/` and survives reboots.
+
+## Update connection
+
+If you switch Cortex connections:
+```bash
+# Re-run install to auto-detect new active connection
+bash integrations/codex/install.sh
+
+# Or edit manually
+vi ~/.config/cortexcode-tool/config.yaml
+```
+
+## Uninstall
 
 ```bash
---envelope '{"mode":"RO"}'
+bash integrations/cli-tool/uninstall.sh
+rm -f ~/.config/cortexcode-tool/config.yaml
 ```
-
-### Executor syntax
-
-Use plain values:
-
-```bash
---envelope RO
-```
-
-This distinction matters.
-
----
-
-## Approval behavior
-
-This skill currently stays close to the original Claude-style implementation.
-
-That means you may see two layers of approval:
-
-### Codex harness approval
-
-Codex may ask permission before running shell commands.
-
-### Skill-internal approval
-
-The wrapper may also return approval instructions such as:
-
-- `approve`
-- `approve_all`
-- `deny`
-
-This comes from the skill’s own internal security model.
-
----
-
-## Common workflow
-
-A typical Snowflake request in Codex may look like this:
-
-1. Codex recognizes the prompt as Snowflake-related
-2. Codex reads `SKILL.md`
-3. Codex runs `scripts/route_request.py`
-4. If routed to `cortex`, Codex uses the wrapper or executor
-5. Cortex performs the Snowflake-specific work
-6. Codex summarizes the result back to you
-
----
 
 ## Troubleshooting
 
-### Skill does not appear in Codex
-
-Check:
-
+**`cortexcode-tool` not found:**
 ```bash
-find ~/.codex/skills/cortex-code -maxdepth 2 | sort | head -100
+which cortexcode-tool
+# If missing, re-run: bash integrations/codex/install.sh
+# Also ensure ~/.local/bin is in PATH
+export PATH="$HOME/.local/bin:$PATH"
 ```
 
-Then restart Codex.
-
-### Wrapper says `Invalid envelope JSON`
-
-You passed the wrong envelope form.
-
-Use:
-
+**Command hangs in Codex:**
 ```bash
-python3 scripts/security_wrapper.py --prompt "..." --envelope '{"mode":"RO"}'
+# Verify approval_mode is auto (not prompt)
+cat ~/.config/cortexcode-tool/config.yaml | grep approval_mode
+# Must be: approval_mode: "auto"
+
+# Verify Cortex connection works
+cortex connections list
+cortex -p "SHOW DATABASES;" --bypass --output-format stream-json
 ```
 
-### Executor stalls or does not return visible output
-
-Check whether `cortex` works directly:
-
+**Wrong connection used:**
 ```bash
-which cortex
-cortex skill list
+# Check which connection is active
+cortex connections list
+# Edit config
+vi ~/.config/cortexcode-tool/config.yaml  # update connection_name
 ```
 
-Also inspect:
-
-```bash
-python3 ~/.codex/skills/cortex-code/scripts/execute_cortex.py --help
-```
-
-### Skill asks for approval twice
-
-That is currently expected because:
-
-- Codex has its own harness approval
-- the skill wrapper has its own approval model
-
----
-
-## Development workflow
-
-This skill is part of the multi-IDE Cortex Code integration monorepo:
-
-```text
-https://github.com/Snowflake-Labs/subagent-cortex-code
-```
-
-The Codex-specific files live in:
-
-```text
-integrations/codex/
-```
-
-The shared code (scripts and security modules) lives in:
-
-```text
-shared/scripts/
-shared/security/
-```
-
-To update the installed skill after making changes:
-
-```bash
-cd /path/to/subagent-cortex-code/integrations/codex
-./install.sh
-```
-
-Restart Codex after installing updates.
-
----
-
-## Key files
-
-- `SKILL.md` — Codex skill definition and workflow
-- `scripts/route_request.py` — prompt routing
-- `scripts/security_wrapper.py` — secure wrapper execution path
-- `scripts/execute_cortex.py` — direct Cortex execution path
-- `security/config_manager.py` — config defaults and overrides
-- `references/` — supporting docs and troubleshooting references
-
----
-
-## Summary
-
-Use this skill when you want Codex to handle Snowflake-related tasks through the local `cortex` CLI.
-
-The skill is part of the multi-CodingAgent Cortex Code integration monorepo at:
-
-```text
-https://github.com/Snowflake-Labs/subagent-cortex-code
-```
-
-The installed runtime copy is at:
-
-```text
-~/.codex/skills/cortex-code
-```
+**Permission errors on audit log:**
+The config uses `/tmp/` paths for logs specifically to avoid Codex sandbox restrictions. If you see permission errors, verify `audit_log_path` and `cache_dir` in your config point to `/tmp/`.

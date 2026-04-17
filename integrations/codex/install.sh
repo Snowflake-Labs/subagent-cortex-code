@@ -1,37 +1,68 @@
 #!/bin/bash
 set -e
 
-TARGET=~/.codex/skills/cortex-code
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+# Config goes in the standard XDG location — cortexcode-tool auto-detects this,
+# so no --config flag is needed when invoking the tool.
+CONFIG_DIR=~/.config/cortexcode-tool
 
-echo "Installing Codex skill to $TARGET"
-
-# Create minimal directory structure (no scripts needed - using cortexcode-tool CLI)
-mkdir -p "$TARGET"
-
-# Copy Codex specific files
-echo "Copying Codex specific files..."
-cp "$REPO_ROOT/integrations/codex/SKILL.md" "$TARGET/"
-cp "$REPO_ROOT/integrations/codex/README.md" "$TARGET/" 2>/dev/null || true
-cp "$REPO_ROOT/integrations/codex/SECURITY.md" "$TARGET/" 2>/dev/null || true
-cp "$REPO_ROOT/integrations/codex/SECURITY_GUIDE.md" "$TARGET/" 2>/dev/null || true
-cp "$REPO_ROOT/integrations/codex/config.yaml.example" "$TARGET/" 2>/dev/null || true
-cp "$REPO_ROOT/integrations/codex/config.yaml" "$TARGET/" 2>/dev/null || true
-cp "$REPO_ROOT/integrations/codex/setup_guidance.md" "$TARGET/" 2>/dev/null || true
-
-# Copy cortexcode-tool config to /tmp for sandbox compatibility
-echo "Setting up cortexcode-tool config for Codex sandbox..."
-cp "$REPO_ROOT/integrations/codex/cortexcode-tool-codex.yaml" "/tmp/cortexcode-tool-codex.yaml"
-chmod 644 "/tmp/cortexcode-tool-codex.yaml"
-
+echo "==> Installing cortexcode-tool for Codex..."
 echo ""
-echo "✓ Codex skill installed successfully"
-echo "  Location: $TARGET"
-echo "  Uses: cortexcode-tool CLI (no Python scripts needed)"
-echo "  Config: /tmp/cortexcode-tool-codex.yaml"
+
+# ── Step 1: Ensure cortexcode-tool is installed ────────────────────────────
+if ! command -v cortexcode-tool &>/dev/null; then
+    echo "cortexcode-tool not found. Installing now..."
+    echo ""
+    bash "$REPO_ROOT/integrations/cli-tool/setup.sh"
+    echo ""
+
+    if ! command -v cortexcode-tool &>/dev/null; then
+        echo "Error: cortexcode-tool install failed. Please install manually:"
+        echo "  bash $REPO_ROOT/integrations/cli-tool/setup.sh"
+        exit 1
+    fi
+else
+    echo "✓ cortexcode-tool already installed: $(which cortexcode-tool)"
+fi
+
+# ── Step 2: Auto-detect active Cortex connection ───────────────────────────
 echo ""
-echo "Requirements:"
-echo "  - cortexcode-tool CLI must be installed"
-echo "  - Run: which cortexcode-tool (to verify)"
+echo "Detecting active Cortex connection..."
+ACTIVE_CONNECTION=""
+if command -v cortex &>/dev/null; then
+    ACTIVE_CONNECTION=$(cortex connections list 2>/dev/null \
+        | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('active_connection',''))" \
+        2>/dev/null || true)
+fi
+
+if [ -n "$ACTIVE_CONNECTION" ]; then
+    echo "✓ Active connection: $ACTIVE_CONNECTION"
+else
+    echo "  Warning: Could not detect active connection. Using 'default'."
+    echo "  Run 'cortex connections list' to check, then edit ~/.config/cortexcode-tool/config.yaml"
+    ACTIVE_CONNECTION="default"
+fi
+
+# ── Step 3: Write config to ~/.config/cortexcode-tool/ ────────────────────
 echo ""
-echo "See SKILL.md for usage instructions"
+echo "Writing config to $CONFIG_DIR/config.yaml..."
+mkdir -p "$CONFIG_DIR"
+sed "s/connection_name: \"default\"/connection_name: \"$ACTIVE_CONNECTION\"/" \
+    "$SCRIPT_DIR/cortexcode-tool-codex.yaml" > "$CONFIG_DIR/config.yaml"
+chmod 644 "$CONFIG_DIR/config.yaml"
+
+# ── Step 4: Summary ────────────────────────────────────────────────────────
+echo ""
+echo "✓ Installation complete"
+echo ""
+echo "  CLI tool   : $(which cortexcode-tool)"
+echo "  Config     : $CONFIG_DIR/config.yaml  (auto-detected, no --config flag needed)"
+echo "  Connection : $ACTIVE_CONNECTION"
+echo ""
+echo "Usage from Codex:"
+echo "  cortexcode-tool \"your question\" --envelope RO"
+echo ""
+echo "Verify:"
+echo "  cortexcode-tool --version"
+echo "  cortexcode-tool \"How many databases do I have in Snowflake?\" --envelope RO"

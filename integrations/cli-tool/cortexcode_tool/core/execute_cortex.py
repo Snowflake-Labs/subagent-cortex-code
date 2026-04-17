@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Executes Cortex Code in headless mode with streaming output parsing.
-Uses --input-format stream-json for programmatic mode with auto-approval.
+Uses --bypass for headless auto-approval and --output-format stream-json for streaming results.
 Handles tool use events and final results.
 """
 
@@ -45,10 +45,12 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
                              approval_mode: str = "auto",
                              allowed_tools: Optional[List[str]] = None) -> Dict:
     """
-    Execute Cortex with streaming JSON output in programmatic mode.
+    Execute Cortex with streaming JSON output in headless mode.
 
-    Uses --input-format stream-json to enable auto-approval of all tool calls,
-    bypassing the need for --bypass which may be blocked by organization policy.
+    Uses --bypass to auto-approve all tool calls without interactive prompts.
+    Uses --output-format stream-json for streaming results.
+    NOTE: --input-format stream-json does NOT work for headless execution —
+    it conflicts with -p and hangs after the init event (tool calls never fire).
     Tools are controlled via --disallowed-tools blocklist for safety.
 
     Args:
@@ -62,12 +64,16 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
     Returns:
         Dictionary with execution results
     """
-    # Build command with programmatic mode enabled
+    # Build command with headless auto-approval mode.
+    # --bypass auto-approves all tool calls without interactive prompts.
+    # --output-format stream-json streams NDJSON events for real-time parsing.
+    # NOTE: --input-format stream-json does NOT work for headless execution —
+    # it conflicts with -p and hangs after the init event (tool calls never fire).
     cmd = [
         "cortex",
         "-p", prompt,
         "--output-format", "stream-json",
-        "--input-format", "stream-json"  # Enables programmatic auto-approval mode
+        "--bypass",
     ]
 
     # Add connection if specified
@@ -119,7 +125,7 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
         for tool in final_disallowed_tools:
             cmd.extend(["--disallowed-tools", tool])
 
-    debug_cmd = f"cortex -p \"...\" --output-format stream-json --input-format stream-json"
+    debug_cmd = f"cortex -p \"...\" --output-format stream-json --bypass"
     if connection:
         debug_cmd += f" -c {connection}"
     if final_disallowed_tools:
@@ -132,6 +138,7 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
             cmd,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
+            stdin=subprocess.DEVNULL,
             text=True,
             bufsize=1
         )
@@ -167,7 +174,9 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
 
                     for item in content:
                         if item.get("type") == "text":
-                            print(f"[Cortex] {item.get('text', '')}", file=sys.stderr)
+                            text = item.get("text", "")
+                            print(text, flush=True)  # flush=True ensures output reaches file redirects immediately
+                            print(f"[Cortex] {text}", file=sys.stderr)
 
                         elif item.get("type") == "tool_use":
                             tool_name = item.get("name")
@@ -246,8 +255,13 @@ def main():
         allowed_tools=args.allowed_tools
     )
 
-    # Output results as JSON
-    print(json.dumps(results, indent=2))
+    # Output minimal status JSON (text responses already printed to stdout above)
+    status = {
+        "session_id": results.get("session_id"),
+        "success": results.get("error") is None,
+        "error": results.get("error")
+    }
+    print(json.dumps(status))
 
     # Exit with appropriate code
     if results.get("error"):

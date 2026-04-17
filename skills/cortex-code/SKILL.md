@@ -214,13 +214,13 @@ python scripts/execute_cortex.py \
 ```
 
 This script:
-1. Invokes `cortex -p "prompt" --output-format stream-json --input-format stream-json`
-2. Uses `--input-format stream-json` to enable programmatic mode with auto-approval of all tools
+1. Invokes `cortex -p "prompt" --output-format stream-json --bypass`
+2. Uses `--bypass` for headless auto-approval without interactive stdin
 3. Applies envelope-based security via `--disallowed-tools` blocklist for safety
 4. Parses NDJSON event stream in real-time
 5. Detects tool use events and execution results
 
-**Key Insight**: `--input-format stream-json` puts Cortex in programmatic mode where all tool calls auto-execute without interactive permission prompts. This works for both built-in and non-builtin tools (snowflake_sql_execute, data_diff, MCP tools, etc.) without requiring `--bypass` or `--dangerously-allow-all-tool-calls` which may be disabled by organization policy.
+**Key Insight**: `--bypass` puts Cortex in headless mode where all tool calls auto-execute without interactive permission prompts. This works for both built-in and non-builtin tools (snowflake_sql_execute, data_diff, MCP tools, etc.) without a TTY or stdin. Note: `--input-format stream-json` does NOT work for headless execution — it hangs waiting for stdin in non-TTY environments.
 
 **Security Envelopes**:
 - **RO** (Read-Only): Blocks Edit, Write, destructive Bash commands
@@ -238,7 +238,7 @@ This script:
 
 With the security wrapper:
 - **prompt mode**: User approves BEFORE execution (no mid-execution prompts)
-- **auto/envelope_only modes**: All tools auto-approved via `--input-format stream-json`
+- **auto/envelope_only modes**: All tools auto-approved via `--bypass` flag
 
 The security wrapper handles permission management through:
 1. **Upfront approval** (prompt mode): User approves predicted tools before execution
@@ -304,12 +304,12 @@ The skill uses a security wrapper that provides:
 
 **Configuration**: `config.yaml` in the skill's install directory, or via organization policy
 
-### Programmatic Mode with Auto-Approval
+### Headless Execution with Auto-Approval
 
 When using auto or envelope_only modes:
 - All tool calls are automatically approved without interactive prompts
 - Works for built-in tools (Read, Write, Edit, Bash, Grep, Glob) and non-builtin tools (snowflake_sql_execute, data_diff, MCP tools)
-- Bypasses organization policies that block `--bypass` or `--dangerously-allow-all-tool-calls`
+- Uses `--bypass` flag for non-TTY headless execution (stdin is ignored)
 - Security is controlled via `--disallowed-tools` blocklist instead of interactive approval
 
 ### Stateless Execution
@@ -401,9 +401,9 @@ grep audit_log_path config.yaml
 ```
 
 ### Error: Tools still requiring approval
-**Cause**: Missing `--input-format stream-json` flag
+**Cause**: Missing `--bypass` flag or approval_mode not set to `auto`/`envelope_only`
 
-**Solution**: Ensure both `--output-format stream-json` AND `--input-format stream-json` are present. The input format flag is what enables programmatic auto-approval mode. The security wrapper handles this automatically.
+**Solution**: Ensure `--output-format stream-json --bypass` are both present. The `--bypass` flag is what enables headless auto-approval mode. The security wrapper handles this automatically. Note: `--input-format stream-json` does NOT work — it hangs in non-TTY environments.
 
 ### Issue: Routing sends Snowflake query to your coding agent
 **Cause**: Routing logic didn't detect Snowflake keywords

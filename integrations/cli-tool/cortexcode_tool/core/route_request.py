@@ -102,15 +102,17 @@ def analyze_with_llm_logic(prompt, capabilities):
     data_term_count = sum(1 for term in data_terms if term in prompt_lower)
     if data_term_count >= 2:
         # Multiple data terms suggest database work
-        # Check if Snowflake context exists
         if snowflake_score > 0:
             snowflake_score += 2
+    elif data_term_count == 1 and "database" in prompt_lower:
+        # Single "database" mention in a Snowflake CLI context → lean toward Cortex
+        snowflake_score += 1
 
     # Calculate confidence
     total_score = snowflake_score + claude_score
     if total_score == 0:
-        # No strong indicators, default to Claude Code for safety
-        return "claude", 0.5
+        # No strong indicators — default to Cortex since user explicitly invoked this CLI
+        return "cortex", 0.5
 
     confidence = max(snowflake_score, claude_score) / total_score
 

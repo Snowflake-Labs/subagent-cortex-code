@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Executes Cortex Code in headless mode with streaming output parsing.
-Uses --input-format stream-json for programmatic mode with auto-approval.
+Uses --bypass flag for headless auto-approval without interactive stdin.
 Handles tool use events and final results.
 """
 
@@ -48,9 +48,8 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
     """
     Execute Cortex with streaming JSON output in programmatic mode.
 
-    Uses --input-format stream-json to enable auto-approval of all tool calls,
-    bypassing the need for --bypass which may be blocked by organization policy.
-    Tools are controlled via --disallowed-tools blocklist for safety.
+    Uses --output-format stream-json for structured output with --bypass for
+    headless auto-approval (no interactive stdin required).
 
     Args:
         prompt: The enriched prompt to send to Cortex
@@ -63,12 +62,12 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
     Returns:
         Dictionary with execution results
     """
-    # Build command with programmatic mode enabled
+    # Build command with headless bypass flag
     cmd = [
         "cortex",
         "-p", prompt,
         "--output-format", "stream-json",
-        "--input-format", "stream-json"  # Enables programmatic auto-approval mode
+        "--bypass"  # Headless auto-approval — no interactive stdin needed
     ]
 
     # Add connection if specified
@@ -120,7 +119,7 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
         for tool in final_disallowed_tools:
             cmd.extend(["--disallowed-tools", tool])
 
-    debug_cmd = f"cortex -p \"...\" --output-format stream-json --input-format stream-json"
+    debug_cmd = f"cortex -p \"...\" --output-format stream-json --bypass"
     if connection:
         debug_cmd += f" -c {connection}"
     if final_disallowed_tools:

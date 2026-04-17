@@ -6,6 +6,11 @@ from pathlib import Path
 from typing import Any, Optional, Dict
 import yaml
 
+# Skill root = parent of the security/ directory containing this file.
+# Using a relative anchor makes the skill portable across any coding agent
+# directory (~/.claude/, ~/.cursor/, ~/.agents/, etc.) without hardcoding.
+_SKILL_DIR = Path(__file__).parent.parent
+
 
 class ConfigValidationError(Exception):
     """Raised when configuration validation fails."""
@@ -20,7 +25,7 @@ class ConfigManager:
             "approval_mode": "prompt",
             "tool_prediction_confidence_threshold": 0.7,
             "allow_tool_expansion": True,
-            "audit_log_path": "~/.codex/skills/cortex-code/audit.log",
+            "audit_log_path": str(_SKILL_DIR / "audit.log"),
             "audit_log_rotation": "10MB",
             "audit_log_retention": 30,
             "sanitize_conversation_history": True,

@@ -16,14 +16,16 @@ Only Snowflake-specific operations go to Cortex Code. Everything else stays in C
 
 ## How to use this skill
 
-When this skill triggers, follow this simplified workflow.
+When this skill triggers, follow this workflow.
 
 ### 1. Execute Snowflake queries via cortexcode-tool
 
-For any Snowflake-related request, use cortexcode-tool directly:
+Run `cortexcode-tool` as a **foreground command** — do NOT background it with `&`.
+Codex automatically waits for long-running commands ("Waited for background terminal").
+The command takes 30-90 seconds.
 
 ```bash
-cortexcode-tool "USER_PROMPT_HERE" --envelope RO --config /tmp/cortexcode-tool-codex.yaml
+cortexcode-tool "USER_PROMPT_HERE" --envelope RO --config ~/.agents/skills/cortex-code/config.yaml
 ```
 
 Choose envelope based on operation:
@@ -32,7 +34,8 @@ Choose envelope based on operation:
 - `RESEARCH` for exploratory work
 - `DEPLOY` for deployment operations
 
-**Note**: The cortexcode-tool CLI handles routing automatically and uses /tmp/ paths for Codex sandbox compatibility. Takes 15-30 seconds and returns clean formatted output.
+**IMPORTANT**: Do not call `cortex -p` directly — it requires interactive stdin and will hang.
+**IMPORTANT**: Do not use `& disown` or background execution — Codex cannot track orphaned processes.
 
 ### 2. Present results back in Codex
 
@@ -42,9 +45,8 @@ After cortexcode-tool finishes:
 - Include key findings, SQL, errors, or next actions
 - Keep Codex as the user-facing orchestrator
 
-**Example output:**
+**Example output** (stdout only — routing/debug messages go to stderr):
 ```
-✓ Routing to Cortex Code (confidence: 100.00%)
 You have **64 databases** in your Snowflake account...
 ```
 
@@ -66,7 +68,7 @@ The cortexcode-tool uses built-in security flow:
 - Prompt sanitization
 - Credential path blocking
 
-Config file location: `/tmp/cortexcode-tool-codex.yaml`
+Config file location: `~/.agents/skills/cortex-code/config.yaml` (written by install.sh, persists across reboots)
 
 ## Notes for Codex
 
@@ -78,31 +80,39 @@ Config file location: `/tmp/cortexcode-tool-codex.yaml`
 
 ## Troubleshooting
 
-### Error: Permission denied on cache directory
-**Solution**: Use the provided config: `--config /tmp/cortexcode-tool-codex.yaml`
+### Error: Permission denied on audit log or cache
+**Solution**: Use the provided config (audit/cache go to /tmp which is always writable):
+```bash
+--config ~/.agents/skills/cortex-code/config.yaml
+```
 
 ### Error: Cortexcode-tool not found
-**Solution**: Install cortexcode-tool CLI first:
+**Solution**: Run the Codex install script — it installs `cortexcode-tool` automatically:
 ```bash
-# Installation instructions in cortexcode-tool repository
+bash integrations/codex/install.sh
 ```
 
 ### Query takes too long
-**Note**: Queries typically take 15-30 seconds. If consistently slower, check Snowflake connection.
+**Note**: Queries typically take 30-60 seconds. Codex will wait automatically.
+If the command times out, retry once — Snowflake connection may have been cold.
+
+### cortex -p hangs with no output
+**Cause**: `cortex -p` without `--bypass` waits for interactive approval on stdin, which is null in non-TTY terminals.
+**Solution**: Always use `cortexcode-tool` (which adds `--bypass` automatically), never `cortex -p` directly.
 
 ## Examples
 
 **Snowflake database count:**
 ```bash
-cortexcode-tool "How many databases do I have in Snowflake?" --envelope RO --config /tmp/cortexcode-tool-codex.yaml
+cortexcode-tool "How many databases do I have in Snowflake?" --envelope RO --config ~/.agents/skills/cortex-code/config.yaml
 ```
 
 **Query specific database:**
 ```bash
-cortexcode-tool "What tables are in DB_STOCK database?" --envelope RO --config /tmp/cortexcode-tool-codex.yaml
+cortexcode-tool "What tables are in DB_STOCK database?" --envelope RO --config ~/.agents/skills/cortex-code/config.yaml
 ```
 
 **Data modification:**
 ```bash
-cortexcode-tool "Create a backup table of SALES_DATA" --envelope RW --config /tmp/cortexcode-tool-codex.yaml
+cortexcode-tool "Create a backup table of SALES_DATA" --envelope RW --config ~/.agents/skills/cortex-code/config.yaml
 ```

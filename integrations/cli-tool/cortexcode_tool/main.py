@@ -113,7 +113,7 @@ def execute_query(
     # Get capabilities
     capabilities = cache.read("cortex-capabilities")
     if not capabilities:
-        print("Discovering Cortex capabilities...")
+        print("Discovering Cortex capabilities...", file=sys.stderr)
         capabilities = discover_cortex_skills()
         cache.write("cortex-capabilities", capabilities, ttl=86400)
 
@@ -121,11 +121,16 @@ def execute_query(
     route, confidence = analyze_with_llm_logic(query, capabilities)
 
     if route != "cortex":
-        print(f"This query should be handled by Claude Code, not Cortex.")
-        print(f"Route: {route}, Confidence: {confidence:.2%}")
+        print(f"This query should be handled by your coding agent, not Cortex.", file=sys.stderr)
+        print(f"Route: {route}, Confidence: {confidence:.2%}", file=sys.stderr)
         return 1
 
-    print(f"✓ Routing to Cortex Code (confidence: {confidence:.2%})")
+    print(f"✓ Routing to Cortex Code (confidence: {confidence:.2%})", file=sys.stderr)
+
+    # Write an immediate stdout marker so the result file is never empty while running.
+    # Codex polls the file during background execution — without this it sees an empty
+    # file for ~45s and gives up before Cortex returns the actual answer.
+    print("Querying Snowflake via Cortex Code...", flush=True)
 
     # Handle approval if needed
     approval_mode = config.get("security.approval_mode", "prompt")
@@ -150,11 +155,12 @@ def execute_query(
     connection = config.get("cortex.connection_name", "default")
     envelope = config.get("cortex.default_envelope", "RW")
 
-    exit_code = execute_cortex_streaming(
+    results = execute_cortex_streaming(
         prompt=query,
         connection=connection,
         envelope=envelope
     )
+    exit_code = 0 if results.get("error") is None else 1
 
     # Log to audit if needed
     if logger_instance:
@@ -173,7 +179,8 @@ def execute_query(
                 "approval_mode": approval_mode
             },
             result={
-                "exit_code": exit_code
+                "exit_code": exit_code,
+                "session_id": results.get("session_id")
             }
         )
 
