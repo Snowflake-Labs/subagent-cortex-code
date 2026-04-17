@@ -12,6 +12,7 @@ Choose your coding agent:
 |-------|---------------|---------|
 | **Claude Code** | `npx skills add snowflake-labs/subagent-cortex-code --copy --global` | [→ Claude Code](#claude-code) |
 | **Cursor** | `npx skills add snowflake-labs/subagent-cortex-code --copy --global` + copy routing rule | [→ Cursor](#cursor) |
+| **Windsurf** | `npx skills add snowflake-labs/subagent-cortex-code --copy --global` | [→ Windsurf](#windsurf) |
 | **Codex** | `bash integrations/codex/install.sh` (**not** npx — skill hangs in sandbox) | [→ Codex](#codex) |
 | **VSCode / terminal** | `bash integrations/cli-tool/setup.sh` | [→ CLI tool](#vscode--terminal) |
 
@@ -77,6 +78,32 @@ ls ~/.cursor/rules/cortex-snowflake-routing.mdc
 ```
 
 See [`integrations/cursor/README.md`](integrations/cursor/README.md) for full details.
+
+---
+
+## Windsurf
+
+Install the skill via `npx`:
+
+```bash
+npx skills add snowflake-labs/subagent-cortex-code --copy --global
+```
+
+This installs `skills/cortex-code/` to `~/.codeium/windsurf/skills/cortex-code/`.
+
+**Verify:**
+```bash
+ls ~/.codeium/windsurf/skills/cortex-code/SKILL.md
+```
+
+Restart Windsurf — Cascade auto-discovers the skill by name and description. Mention anything Snowflake-related and it activates automatically. No routing rule needed.
+
+**Optional: configure security mode**
+```bash
+cp ~/.codeium/windsurf/skills/cortex-code/config.yaml.example \
+   ~/.codeium/windsurf/skills/cortex-code/config.yaml
+# edit as needed — default is "prompt" (asks before executing)
+```
 
 ---
 
@@ -305,9 +332,10 @@ cortex connections create   # to add one
 
 **Skill not loading (Claude Code / Cursor):**
 ```bash
-ls ~/.claude/skills/cortex-code/SKILL.md   # Claude Code
-ls ~/.cursor/skills-cursor/cortex-code/SKILL.md   # Cursor
-# If missing, re-run: npx skills add snowflake-labs/subagent-cortex-code --copy
+ls ~/.claude/skills/cortex-code/SKILL.md                    # Claude Code
+ls ~/.cursor/skills-cursor/cortex-code/SKILL.md             # Cursor
+ls ~/.codeium/windsurf/skills/cortex-code/SKILL.md          # Windsurf
+# If missing, re-run: npx skills add snowflake-labs/subagent-cortex-code --copy --global
 ```
 
 **Codex command hanging:**
