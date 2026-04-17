@@ -12,7 +12,7 @@ Choose your coding agent:
 |-------|---------------|---------|
 | **Claude Code** | `npx skills add snowflake-labs/subagent-cortex-code --copy --global` | [→ Claude Code](#claude-code) |
 | **Cursor** | `npx skills add snowflake-labs/subagent-cortex-code --copy --global` + copy routing rule | [→ Cursor](#cursor) |
-| **Codex** | `bash integrations/codex/install.sh` | [→ Codex](#codex) |
+| **Codex** | `bash integrations/codex/install.sh` (**not** npx — skill hangs in sandbox) | [→ Codex](#codex) |
 | **VSCode / terminal** | `bash integrations/cli-tool/setup.sh` | [→ CLI tool](#vscode--terminal) |
 
 **Prerequisite for all**: Cortex Code CLI installed and configured.
@@ -83,6 +83,8 @@ See [`integrations/cursor/README.md`](integrations/cursor/README.md) for full de
 ## Codex
 
 Codex uses the `cortexcode-tool` CLI directly — no skill directory needed.
+
+> **Important:** Do NOT run `npx skills add` for Codex. The skill-based approach hangs in Codex's sandbox because it requires interactive approval prompts. Use the CLI install below instead.
 
 ```bash
 git clone https://github.com/Snowflake-Labs/subagent-cortex-code.git
