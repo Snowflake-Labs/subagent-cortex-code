@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Executes Cortex Code in headless mode with streaming output parsing.
-Uses --input-format stream-json for programmatic mode with auto-approval.
+Uses --bypass for headless auto-approval and --output-format stream-json for streaming results.
 Handles tool use events and final results.
 """
 
@@ -9,6 +9,7 @@ import json
 import subprocess
 import sys
 import argparse
+import threading
 from typing import List, Dict, Optional
 
 
@@ -146,6 +147,18 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
             "error": None
         }
 
+        # Heartbeat: print a dot to stdout every 5 seconds while cortex is running.
+        # Codex CLI backgrounds commands that produce no stdout for ~10s — the heartbeat
+        # keeps it polling so the final answer isn't missed.
+        _done = threading.Event()
+
+        def _heartbeat():
+            while not _done.wait(5):
+                print(".", end="", flush=True)
+
+        hb = threading.Thread(target=_heartbeat, daemon=True)
+        hb.start()
+
         # Read streaming output
         for line in process.stdout:
             if not line.strip():
@@ -203,6 +216,8 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
                 continue
 
         # Wait for process to complete
+        _done.set()  # stop heartbeat
+        print(flush=True)  # newline after dots
         process.wait()
 
         # Check for errors
