@@ -200,9 +200,16 @@ def main(argv: Optional[List[str]] = None) -> int:
         if args.config:
             config_path = Path(args.config)
         else:
-            # Auto-detect default config location
-            default_config = Path.home() / ".config" / "cortexcode-tool" / "config.yaml"
-            config_path = default_config if default_config.exists() else None
+            # Auto-detect config: check next to the installed package first,
+            # then fall back to XDG config dir (~/.config/cortexcode-tool/)
+            _lib_config = Path(__file__).parent.parent / "config.yaml"
+            _xdg_config = Path.home() / ".config" / "cortexcode-tool" / "config.yaml"
+            if _lib_config.exists():
+                config_path = _lib_config
+            elif _xdg_config.exists():
+                config_path = _xdg_config
+            else:
+                config_path = None
 
         config = ConfigManager(
             config_path=config_path,

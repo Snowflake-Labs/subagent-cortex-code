@@ -183,8 +183,7 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
                     for item in content:
                         if item.get("type") == "text":
                             text = item.get("text", "")
-                            print(text, flush=True)  # stdout — Codex reads this as the answer
-                            print(f"[Cortex] {text}", file=sys.stderr)
+                            print(text, flush=True)  # stdout — the answer
 
                         elif item.get("type") == "tool_use":
                             tool_name = item.get("name")
@@ -208,7 +207,6 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
                 # Handle final result
                 elif event_type == "result":
                     results["final_result"] = event.get("result")
-                    print(f"[Cortex] Result: {event.get('result')}", file=sys.stderr)
 
             except json.JSONDecodeError as e:
                 print(f"Warning: Failed to parse line: {line[:100]}... Error: {e}", file=sys.stderr)

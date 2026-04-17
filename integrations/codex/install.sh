@@ -3,9 +3,9 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-# Config goes in the standard XDG location — cortexcode-tool auto-detects this,
-# so no --config flag is needed when invoking the tool.
-CONFIG_DIR=~/.config/cortexcode-tool
+# Config goes next to the installed package so cortexcode-tool finds it
+# without needing a --config flag (checked before ~/.config/ fallback).
+INSTALL_LIB_DIR="$HOME/.local/lib/cortexcode-tool"
 
 echo "==> Installing cortexcode-tool for Codex..."
 echo ""
@@ -40,24 +40,24 @@ if [ -n "$ACTIVE_CONNECTION" ]; then
     echo "✓ Active connection: $ACTIVE_CONNECTION"
 else
     echo "  Warning: Could not detect active connection. Using 'default'."
-    echo "  Run 'cortex connections list' to check, then edit ~/.config/cortexcode-tool/config.yaml"
+    echo "  Run 'cortex connections list' to check, then edit $INSTALL_LIB_DIR/config.yaml"
     ACTIVE_CONNECTION="default"
 fi
 
-# ── Step 3: Write config to ~/.config/cortexcode-tool/ ────────────────────
+# ── Step 3: Write config next to the installed package ───────────────────
 echo ""
-echo "Writing config to $CONFIG_DIR/config.yaml..."
-mkdir -p "$CONFIG_DIR"
+echo "Writing config to $INSTALL_LIB_DIR/config.yaml..."
+mkdir -p "$INSTALL_LIB_DIR"
 sed "s/connection_name: \"default\"/connection_name: \"$ACTIVE_CONNECTION\"/" \
-    "$SCRIPT_DIR/cortexcode-tool-codex.yaml" > "$CONFIG_DIR/config.yaml"
-chmod 644 "$CONFIG_DIR/config.yaml"
+    "$SCRIPT_DIR/cortexcode-tool-codex.yaml" > "$INSTALL_LIB_DIR/config.yaml"
+chmod 644 "$INSTALL_LIB_DIR/config.yaml"
 
 # ── Step 4: Summary ────────────────────────────────────────────────────────
 echo ""
 echo "✓ Installation complete"
 echo ""
 echo "  CLI tool   : $(which cortexcode-tool)"
-echo "  Config     : $CONFIG_DIR/config.yaml  (auto-detected, no --config flag needed)"
+echo "  Config     : $INSTALL_LIB_DIR/config.yaml  (auto-detected, no --config flag needed)"
 echo "  Connection : $ACTIVE_CONNECTION"
 echo ""
 echo "Usage from Codex:"
