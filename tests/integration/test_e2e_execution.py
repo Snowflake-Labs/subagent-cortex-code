@@ -645,7 +645,7 @@ security:
         assert result["routing"]["confidence"] > 0.5
 
     def test_e2e_routing_to_claude_for_local_operations(self, temp_dir):
-        """Test local file operations route to Claude."""
+        """Test local file operations route to coding agent."""
         config_path = temp_dir / "config.yaml"
         config_path.write_text("""
 security:
@@ -654,14 +654,18 @@ security:
   cache_dir: {}/.cache
 """.format(temp_dir, temp_dir))
 
-        result = execute_with_security(
-            prompt="Read local file config.json and parse it with Python",
-            config_path=str(config_path)
-        )
+        with patch('scripts.security_wrapper.load_cortex_capabilities') as mock_cap:
+            mock_cap.return_value = {}
 
-        # Should route to Claude, not execute
-        assert result["status"] == "routed_to_claude"
-        assert result["routing"]["decision"] == "claude"
+            result = execute_with_security(
+                prompt="Read local file config.json and parse it with Python",
+                config_path=str(config_path),
+                envelope={"type": "RO"}
+            )
+
+            # Should route to coding agent, not execute
+            assert result["status"] == "routed_to_coding_agent"
+            assert result["routing"]["decision"] == "__CODING_AGENT__"
 
     def test_e2e_routing_with_sql_and_snowflake_context(self, temp_dir):
         """Test SQL query with Snowflake context routes to Cortex."""

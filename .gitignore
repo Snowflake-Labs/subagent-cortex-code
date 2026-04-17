@@ -20,6 +20,9 @@ build/
 
 # User configuration (local settings)
 config.yaml
+# Exception: Claude Code and Codex need default config.yaml for proper setup
+!integrations/claude-code/config.yaml
+!integrations/codex/config.yaml
 
 # Generated/temporary directories
 semantic_view_*/
@@ -36,3 +39,7 @@ audit.log
 
 # OS
 Thumbs.db
+# Coverage reports
+.coverage
+htmlcov/
+.pytest_cache/

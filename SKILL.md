@@ -1,12 +1,7 @@
----
-name: cortex-code
-description: Routes Snowflake-related operations to Cortex Code CLI for specialized Snowflake expertise. Use when user asks about Snowflake databases, data warehouses, SQL queries on Snowflake, Cortex AI features, Snowpark, dynamic tables, data governance in Snowflake, Snowflake security, or mentions "Cortex" explicitly. Do NOT use for general programming, local file operations, non-Snowflake databases, web development, or infrastructure tasks unrelated to Snowflake.
-metadata:
-  author: Snowflake Integration Team
-  compatibility: Requires Cortex Code CLI installed and configured
----
+# Cortex Code Integration — Reference Documentation
 
-# Cortex Code Integration Skill
+> **Installing?** Use: `npx skills add snowflake-labs/subagent-cortex-code --copy`
+> This installs from `skills/cortex-code/` which is the universal, agent-agnostic skill.
 
 This skill enables Claude Code to leverage Cortex Code's specialized Snowflake expertise by intelligently routing Snowflake-related operations to Cortex Code CLI in headless mode.
 
@@ -46,7 +41,7 @@ The skill includes a security wrapper around Cortex execution with three approva
    - Relies on envelope blocklist only
    - Best for: Trusted environments, low latency needs
 
-**Configuration**: Set in `~/.claude/skills/cortex-code/config.yaml` or organization policy.
+**Configuration**: Set in `config.yaml` in the skill's install directory, or via organization policy.
 
 ### Built-in Protections
 
@@ -230,7 +225,7 @@ With the security wrapper:
 
 The security wrapper handles permission management through:
 1. **Upfront approval** (prompt mode): User approves predicted tools before execution
-2. **Audit logging** (auto/envelope_only): All operations logged to `~/.claude/skills/cortex-code/audit.log`
+2. **Audit logging** (auto/envelope_only): All operations logged to `audit.log` in the skill's install directory
 3. **Envelope enforcement**: Tool blocklist still enforced via `--disallowed-tools`
 
 ### Step 7: Return Results to User
@@ -290,7 +285,7 @@ The skill uses a security wrapper that provides:
 - **Audit logging**: Mandatory for auto/envelope_only modes
 - **Tool prediction**: LLM predicts required tools for approval prompt
 
-**Configuration**: `~/.claude/skills/cortex-code/config.yaml` or organization policy
+**Configuration**: `config.yaml` in the skill's install directory, or via organization policy
 
 ### Programmatic Mode with Auto-Approval
 
@@ -336,8 +331,9 @@ which cortex
 
 **Solution**:
 ```bash
-# Check approval mode
-cat ~/.claude/skills/cortex-code/config.yaml | grep approval_mode
+# Check approval mode (path varies by agent: ~/.claude/, ~/.cursor/, ~/.codex/, etc.)
+cat "$(dirname $(which cortex))/../skills/cortex-code/config.yaml" | grep approval_mode 2>/dev/null \
+  || cat ~/skills/cortex-code/config.yaml | grep approval_mode
 
 # Check organization policy (overrides user config)
 cat ~/.snowflake/cortex/claude-skill-policy.yaml 2>/dev/null
@@ -379,12 +375,12 @@ security:
 
 **Solution**:
 ```bash
-# Create log directory
-mkdir -p ~/.claude/skills/cortex-code
-chmod 700 ~/.claude/skills/cortex-code
+# Create the skill's install directory if missing and set permissions
+# Path is agent-specific: ~/.claude/skills/cortex-code/, ~/.cursor/skills/cortex-code/, etc.
+chmod 700 "$(cd "$(dirname "$0")/.." && pwd)"
 
-# Verify configuration
-cat ~/.claude/skills/cortex-code/config.yaml | grep audit_log_path
+# Verify audit_log_path in config.yaml within the skill directory
+grep audit_log_path config.yaml
 ```
 
 ### Error: Tools still requiring approval

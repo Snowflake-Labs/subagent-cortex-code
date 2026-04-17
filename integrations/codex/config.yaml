@@ -1,0 +1,17 @@
+# Codex Cortex Code Skill Configuration
+# Minimal config for CLI usage
+
+security:
+  # Auto-approve for non-interactive CLI usage
+  approval_mode: "auto"
+
+  # Audit logging (mandatory for auto mode)
+  audit_log_path: "/tmp/codex-cortex-audit.log"
+  audit_log_rotation: "10MB"
+  audit_log_retention: 30
+
+  # Sanitization
+  sanitize_conversation_history: true
+
+  # Cache (Codex sandbox may block ~/.cache/)
+  cache_dir: "/tmp/cortex-skill-cache"
