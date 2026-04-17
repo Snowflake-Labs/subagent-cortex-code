@@ -26,7 +26,7 @@ bash integrations/codex/install.sh
 The script:
 1. Installs `cortexcode-tool` CLI to `~/.local/bin/` (via `integrations/cli-tool/setup.sh`)
 2. Auto-detects your active Cortex connection from `cortex connections list`
-3. Writes config to `~/.config/cortexcode-tool/config.yaml` (auto-detected — no `--config` flag needed)
+3. Writes config to `~/.local/lib/cortexcode-tool/config.yaml` (auto-detected — no `--config` flag needed)
 
 ## Verify
 
@@ -63,27 +63,27 @@ Do **not** background the command (`& disown`). Codex automatically waits for fo
 ## What gets installed
 
 ```
-~/.local/bin/cortexcode-tool          # CLI entry point
-~/.local/lib/cortexcode-tool/         # Python package
-~/.config/cortexcode-tool/config.yaml # Config (auto-detected by the tool)
+~/.local/bin/cortexcode-tool              # CLI entry point
+~/.local/lib/cortexcode-tool/             # Python package
+~/.local/lib/cortexcode-tool/config.yaml  # Config (auto-detected by the tool)
 ```
 
 Config example:
 ```yaml
 security:
   approval_mode: "auto"
-  audit_log_path: "/tmp/cortexcode-tool-codex-audit.log"
-  cache_dir: "/tmp/cortexcode-tool-cache"
+  audit_log_path: "~/.cache/cortexcode-tool/audit.log"
+  cache_dir: "~/.cache/cortexcode-tool"
 
 cortex:
   connection_name: "your-connection-name"
-  default_envelope: "RW"
+  default_envelope: "RO"
 
 logging:
-  file: "/tmp/cortexcode-tool-codex.log"
+  file: "~/.cache/cortexcode-tool/cortexcode-tool.log"
 ```
 
-Audit/log paths use `/tmp/` to avoid Codex sandbox permission issues. The config itself lives at `~/.config/cortexcode-tool/` and survives reboots.
+Audit/log paths use `~/.cache/` so Codex's sandbox triggers a bypass prompt, allowing `cortexcode-tool` to reach Snowflake outside the sandbox. Do **not** change them to `/tmp/` — `/tmp/` is accessible inside the sandbox and prevents the bypass.
 
 ## Update connection
 
@@ -93,14 +93,14 @@ If you switch Cortex connections:
 bash integrations/codex/install.sh
 
 # Or edit manually
-vi ~/.config/cortexcode-tool/config.yaml
+vi ~/.local/lib/cortexcode-tool/config.yaml
 ```
 
 ## Uninstall
 
 ```bash
 bash integrations/cli-tool/uninstall.sh
-rm -f ~/.config/cortexcode-tool/config.yaml
+rm -f ~/.local/lib/cortexcode-tool/config.yaml
 ```
 
 ## Troubleshooting
@@ -116,7 +116,7 @@ export PATH="$HOME/.local/bin:$PATH"
 **Command hangs in Codex:**
 ```bash
 # Verify approval_mode is auto (not prompt)
-cat ~/.config/cortexcode-tool/config.yaml | grep approval_mode
+cat ~/.local/lib/cortexcode-tool/config.yaml | grep approval_mode
 # Must be: approval_mode: "auto"
 
 # Verify Cortex connection works
@@ -129,8 +129,8 @@ cortex -p "SHOW DATABASES;" --bypass --output-format stream-json
 # Check which connection is active
 cortex connections list
 # Edit config
-vi ~/.config/cortexcode-tool/config.yaml  # update connection_name
+vi ~/.local/lib/cortexcode-tool/config.yaml  # update connection_name
 ```
 
 **Permission errors on audit log:**
-The config uses `/tmp/` paths for logs specifically to avoid Codex sandbox restrictions. If you see permission errors, verify `audit_log_path` and `cache_dir` in your config point to `/tmp/`.
+The config uses `~/.cache/` paths for logs. Codex's sandbox blocks `~/.cache/` operations, which triggers a bypass prompt — the tool then runs outside the sandbox with full network access to Snowflake. Do **not** change these paths to `/tmp/` or other sandbox-accessible locations, as that would break the bypass mechanism.

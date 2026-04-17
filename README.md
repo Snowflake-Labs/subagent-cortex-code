@@ -95,7 +95,7 @@ bash integrations/codex/install.sh
 The script:
 1. Installs the `cortexcode-tool` CLI to `~/.local/bin/`
 2. Auto-detects your active Cortex connection
-3. Writes config to `~/.config/cortexcode-tool/config.yaml` (auto-detected, no `--config` flag needed)
+3. Writes config to `~/.local/lib/cortexcode-tool/config.yaml` (auto-detected, no `--config` flag needed)
 
 **Verify:**
 ```bash
@@ -202,7 +202,7 @@ Snowflake Execution       General Tasks
 | **auto** | Medium | Automated workflows, CI/CD |
 | **envelope_only** | Medium | Trusted environments, faster |
 
-Configure in `config.yaml` in the skill's install directory (for skill-based agents) or `~/.config/cortexcode-tool/config.yaml` (for CLI-based agents):
+Configure in `config.yaml` in the skill's install directory (for skill-based agents) or `~/.local/lib/cortexcode-tool/config.yaml` (for CLI-based agents):
 ```yaml
 security:
   approval_mode: "auto"  # or "prompt" or "envelope_only"
@@ -306,14 +306,14 @@ cortex connections create   # to add one
 **Skill not loading (Claude Code / Cursor):**
 ```bash
 ls ~/.claude/skills/cortex-code/SKILL.md   # Claude Code
-ls ~/.cursor/skills/cortex-code/SKILL.md   # Cursor
+ls ~/.cursor/skills-cursor/cortex-code/SKILL.md   # Cursor
 # If missing, re-run: npx skills add snowflake-labs/subagent-cortex-code --copy
 ```
 
 **Codex command hanging:**
 ```bash
-# Verify cortexcode-tool config exists
-cat ~/.config/cortexcode-tool/config.yaml | grep approval_mode
+# Verify cortexcode-tool config exists and uses auto approval
+cat ~/.local/lib/cortexcode-tool/config.yaml | grep approval_mode
 # Should be: approval_mode: "auto"
 ```
 

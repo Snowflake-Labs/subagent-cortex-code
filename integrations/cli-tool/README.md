@@ -36,11 +36,12 @@ cortexcode-tool "How many databases do I have in Snowflake?"
 
 ## Configuration
 
-The tool auto-detects `~/.config/cortexcode-tool/config.yaml`. Create it from the example:
+`setup.sh` writes config to `~/.local/lib/cortexcode-tool/config.yaml` automatically (co-located with the installed package). You can also place a config at `~/.config/cortexcode-tool/config.yaml` as a fallback — the tool checks the lib directory first.
+
+To customize, edit the auto-written config or create one from the example:
 
 ```bash
-mkdir -p ~/.config/cortexcode-tool
-cp config.yaml.example ~/.config/cortexcode-tool/config.yaml
+cp config.yaml.example ~/.local/lib/cortexcode-tool/config.yaml
 # edit as needed
 ```
 
@@ -51,7 +52,7 @@ security:
 
 cortex:
   connection_name: "your-connection-name"
-  default_envelope: "RW"
+  default_envelope: "RO"
 ```
 
 See `config.yaml.example` for all options.
@@ -114,7 +115,7 @@ cortex connections create
 **Command hangs (approval prompt):**
 ```bash
 # Check approval mode
-cat ~/.config/cortexcode-tool/config.yaml | grep approval_mode
+cat ~/.local/lib/cortexcode-tool/config.yaml | grep approval_mode
 # For automated use, set: approval_mode: "auto"
 ```
 
