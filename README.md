@@ -102,6 +102,14 @@ cortexcode-tool "How many databases do I have in Snowflake?" --envelope RO
 ```
 
 **Usage from Codex sessions:**
+
+First time — paste into a Codex session to confirm the tool is discoverable:
+```
+which cortexcode-tool
+cortexcode-tool --help
+```
+
+Then:
 ```bash
 cortexcode-tool "your question" --envelope RO
 ```
