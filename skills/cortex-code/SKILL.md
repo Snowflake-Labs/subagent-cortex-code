@@ -74,7 +74,8 @@ When this skill is first loaded:
 
 ### Step 1: Discover Cortex Capabilities
 ```bash
-python scripts/discover_cortex.py
+PYTHON=$(command -v python3 2>/dev/null || command -v python 2>/dev/null || echo python3)
+$PYTHON scripts/discover_cortex.py
 ```
 
 This script:
@@ -95,7 +96,8 @@ The discovered capabilities are loaded into memory to inform routing decisions t
 Before taking any action, analyze the user's request:
 
 ```bash
-python scripts/route_request.py --prompt "USER_PROMPT_HERE"
+PYTHON=$(command -v python3 2>/dev/null || command -v python 2>/dev/null || echo python3)
+$PYTHON scripts/route_request.py --prompt "USER_PROMPT_HERE"
 ```
 
 This script:
@@ -144,7 +146,8 @@ Read configuration to determine approval behavior:
 If using prompt mode:
 
 ```bash
-python scripts/security_wrapper.py \
+PYTHON=$(command -v python3 2>/dev/null || command -v python 2>/dev/null || echo python3)
+$PYTHON scripts/security_wrapper.py \
   --prompt "ENRICHED_PROMPT" \
   --envelope "RW"
 ```
@@ -186,7 +189,8 @@ Build an enriched prompt that includes:
 
 **Recent Cortex Session Context**:
 ```bash
-python scripts/read_cortex_sessions.py --limit 3
+PYTHON=$(command -v python3 2>/dev/null || command -v python 2>/dev/null || echo python3)
+$PYTHON scripts/read_cortex_sessions.py --limit 3
 ```
 
 This reads the most recent Cortex session files from `~/.local/share/cortex/sessions/` to understand what Cortex recently worked on.
@@ -206,7 +210,8 @@ This reads the most recent Cortex session files from `~/.local/share/cortex/sess
 ### Step 5: Execute Cortex Code Headlessly
 
 ```bash
-python scripts/execute_cortex.py \
+PYTHON=$(command -v python3 2>/dev/null || command -v python 2>/dev/null || echo python3)
+$PYTHON scripts/execute_cortex.py \
   --prompt "ENRICHED_PROMPT" \
   --connection "connection_name" \
   --envelope "RW" \
