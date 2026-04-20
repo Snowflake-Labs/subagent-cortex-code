@@ -284,12 +284,9 @@ def main():
     if args.envelope:
         try:
             envelope = json.loads(args.envelope)
-        except json.JSONDecodeError as e:
-            print(json.dumps({
-                "status": "error",
-                "message": f"Invalid envelope JSON: {e}"
-            }))
-            sys.exit(1)
+        except json.JSONDecodeError:
+            # Accept plain envelope type strings: "RO", "RW", "RESEARCH", "DEPLOY", "NONE"
+            envelope = {"type": args.envelope}
 
     # Execute with security
     try:
