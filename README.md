@@ -32,7 +32,11 @@ Install the skill via `npx`:
 npx skills add snowflake-labs/subagent-cortex-code --copy --global
 ```
 
-This installs `skills/cortex-code/` from this repo to `~/.claude/skills/cortex-code/`.
+`npx skills add` installs to `~/.agents/skills/cortex-code/`. Move it into Claude Code's skills directory:
+
+```bash
+mv ~/.agents/skills/cortex-code ~/.claude/skills/cortex-code
+```
 
 **Verify:**
 ```bash

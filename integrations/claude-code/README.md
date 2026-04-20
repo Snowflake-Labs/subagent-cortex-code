@@ -15,7 +15,11 @@ Enables Claude Code to route Snowflake queries to Cortex Code CLI automatically.
 npx skills add snowflake-labs/subagent-cortex-code --copy --global
 ```
 
-This installs `skills/cortex-code/` from this repo to `~/.claude/skills/cortex-code/`.
+`npx skills add` installs to `~/.agents/skills/cortex-code/`. Move it into Claude Code's skills directory:
+
+```bash
+mv ~/.agents/skills/cortex-code ~/.claude/skills/cortex-code
+```
 
 **Verify:**
 ```bash
@@ -115,7 +119,9 @@ rm -rf ~/.claude/skills/cortex-code
 **Skill not loading:**
 ```bash
 ls ~/.claude/skills/cortex-code/SKILL.md
-# If missing, re-run: npx skills add snowflake-labs/subagent-cortex-code --copy
+# If missing, re-run npx and mv:
+npx skills add snowflake-labs/subagent-cortex-code --copy --global
+mv ~/.agents/skills/cortex-code ~/.claude/skills/cortex-code
 ```
 
 **Cortex not found:**
