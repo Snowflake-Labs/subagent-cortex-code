@@ -1,6 +1,7 @@
 ---
 name: cortex-code
 description: Routes Snowflake-related operations to Cortex Code CLI for specialized Snowflake expertise. Use when user asks about Snowflake databases, data warehouses, SQL queries on Snowflake, Cortex AI features, Snowpark, dynamic tables, data governance in Snowflake, Snowflake security, or mentions "Cortex" explicitly. Do NOT use for general programming, local file operations, non-Snowflake databases, web development, or infrastructure tasks unrelated to Snowflake.
+license: Proprietary. See LICENSE for complete terms
 metadata:
   author: Snowflake Integration Team
   compatibility: Requires Cortex Code CLI installed and configured
