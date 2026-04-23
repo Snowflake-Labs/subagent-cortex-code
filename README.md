@@ -14,6 +14,7 @@ Choose your coding agent:
 | **Cursor** | `npx skills add snowflake-labs/subagent-cortex-code --copy --global` + copy routing rule | [→ Cursor](#cursor) |
 | **Windsurf** | `npx skills add snowflake-labs/subagent-cortex-code --copy --global` | [→ Windsurf](#windsurf) |
 | **Codex** | `bash integrations/codex/install.sh` (**not** npx — skill hangs in sandbox) | [→ Codex](#codex) |
+| **GitHub Copilot** | `npx skills add snowflake-labs/subagent-cortex-code --copy --global` | [→ GitHub Copilot](#github-copilot) |
 | **VSCode / terminal** | `bash integrations/cli-tool/setup.sh` | [→ CLI tool](#vscode--terminal) |
 
 **Prerequisite for all**: Cortex Code CLI installed and configured.
@@ -34,7 +35,6 @@ When you run `npx skills add snowflake-labs/subagent-cortex-code --copy --global
 - Deep Agents
 - Firebender
 - Gemini CLI
-- GitHub Copilot
 - Kimi Code CLI
 - OpenCode
 - Warp
@@ -171,6 +171,32 @@ How many databases do I have in Snowflake?
 ```
 
 See [`integrations/codex/README.md`](integrations/codex/README.md) for full details.
+
+---
+
+## GitHub Copilot
+
+Install the skill via `npx`:
+
+```bash
+npx skills add snowflake-labs/subagent-cortex-code --copy --global
+```
+
+This installs `skills/cortex-code/` to `~/.agents/skills/cortex-code/` — the universal skills directory that GitHub Copilot CLI reads from automatically.
+
+**Verify:**
+```bash
+ls ~/.agents/skills/cortex-code/SKILL.md
+```
+
+Start a GitHub Copilot CLI session — it auto-discovers the skill by name and description. Mention anything Snowflake-related and it activates automatically. No routing rule needed.
+
+**Optional: configure security mode**
+```bash
+cp ~/.agents/skills/cortex-code/config.yaml.example \
+   ~/.agents/skills/cortex-code/config.yaml
+# edit as needed — default is "prompt" (asks before executing)
+```
 
 ---
 
