@@ -1,6 +1,7 @@
 ---
 name: cortex-code
 description: Routes Snowflake-related operations to Cortex Code agent for specialized Snowflake expertise. Use when querying databases, checking data quality, or asking about Snowflake features.
+license: Proprietary. See LICENSE for complete terms
 ---
 
 # Cortex Code Integration

@@ -387,6 +387,7 @@ which cortexcode-tool
 
 ## License
 
-Copyright © 2026 Snowflake Inc. All rights reserved.
+Copyright (c) Snowflake Inc. All rights reserved.
+Licensed under the [Snowflake Skills License](LICENSE).
 
 For issues: [GitHub Issues](https://github.com/Snowflake-Labs/subagent-cortex-code/issues)
