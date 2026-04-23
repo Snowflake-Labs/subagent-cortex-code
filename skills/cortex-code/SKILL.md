@@ -61,6 +61,8 @@ The skill includes a security wrapper around Cortex execution with three approva
 
 **Configuration**: Set in `config.yaml` in the skill's install directory, or via organization policy.
 
+> **IMPORTANT — `config.yaml` is optional.** The skill ships only `config.yaml.example` as a template. If no `config.yaml` exists, the Python scripts apply safe defaults (`approval_mode: prompt`, `default_envelope: RO`). **Do not search, glob, or `ls` for `config.yaml` before executing** — `ConfigManager` handles this internally. Only read/create `config.yaml` if the user explicitly asks to change settings.
+
 ### Built-in Protections
 
 - **Prompt Sanitization**: Automatic PII removal and injection detection
@@ -68,6 +70,23 @@ The skill includes a security wrapper around Cortex execution with three approva
 - **Secure Caching**: SHA256-validated cache in `~/.cache/cortex-skill/`
 - **Audit Logging**: Structured JSONL logs (mandatory for auto/envelope_only)
 - **Organization Policy**: Enterprise override via `~/.snowflake/cortex/claude-skill-policy.yaml`
+
+## Fast Path for Repeat Queries
+
+**Session state is cached — do not re-run initialization steps on every query.**
+
+Skip the following steps if they've already run in the current session:
+- `discover_cortex.py` — output cached to `~/.cache/cortex-skill/cortex-capabilities.json`
+- `route_request.py` — for obvious Snowflake queries (user says "Snowflake", "Cortex", "databases", "warehouse", etc.), you can skip routing and go straight to execution
+- `cortex connections list` — the active connection doesn't change within a session; reuse it
+- Any `config.yaml` / org-policy inspection — `ConfigManager` handles this (see note above)
+
+**Minimal flow for a follow-up Snowflake query** (after the first query in a session):
+1. (If `approval_mode: prompt`) ask user for approval
+2. Call `execute_cortex.py` with the enriched prompt and envelope
+3. Return results
+
+That's it. Three steps — no re-discovery, no re-routing, no config inspection.
 
 ## Session Initialization
 
@@ -137,7 +156,8 @@ Before executing Cortex, the security wrapper handles approval based on configur
 
 #### Step 3a: Check Approval Mode
 
-Read configuration to determine approval behavior:
+`security_wrapper.py` reads `approval_mode` from `config.yaml` internally — **do not inspect the config file yourself.** If `config.yaml` doesn't exist, the default is `prompt` mode.
+
 - **prompt mode** (default): Requires user approval
 - **auto mode**: Auto-approve with audit logging
 - **envelope_only mode**: Auto-approve, no tool prediction
