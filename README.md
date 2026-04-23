@@ -22,6 +22,27 @@ which cortex          # must return a path
 cortex connections list   # must show an active connection
 ```
 
+### Also works out of the box with many other agents
+
+When you run `npx skills add snowflake-labs/subagent-cortex-code --copy --global`, the skill is automatically installed for every "universal" agent the `skills` CLI knows about. No extra steps required — just restart the agent.
+
+**Universal agents (installed to `~/.agents/skills/cortex-code/`, always included):**
+
+- Amp
+- Antigravity
+- Cline
+- Codex — **use the dedicated setup above instead** (sandbox hangs the skill-based flow)
+- Cursor — **also run the routing rule step above** for auto-invocation
+- Deep Agents
+- Firebender
+- Gemini CLI
+- GitHub Copilot
+- Kimi Code CLI
+- OpenCode
+- Warp
+
+For the full list of 40+ supported agents (including optional opt-in ones like Continue, Goose, OpenHands, Roo Code, etc.) see the [`skills` CLI agents catalog](https://github.com/vercel-labs/skills). The interactive `npx` prompt lets you select additional targets per install.
+
 ---
 
 ## Claude Code
