@@ -31,8 +31,6 @@ When you run `npx skills add snowflake-labs/subagent-cortex-code --copy --global
 - Amp
 - Antigravity
 - Cline
-- Codex — **use the dedicated setup above instead** (sandbox hangs the skill-based flow)
-- Cursor — **also run the routing rule step above** for auto-invocation
 - Deep Agents
 - Firebender
 - Gemini CLI
