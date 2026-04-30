@@ -103,7 +103,7 @@ When you ask a Snowflake-related question:
 | **RO** | Queries and reads | Edit, Write, destructive Bash |
 | **RW** | Data modifications | Destructive ops (rm -rf, sudo) |
 | **RESEARCH** | Exploratory work | Write operations |
-| **DEPLOY** | Full access | Nothing |
+| **DEPLOY** | Deployment operations | Destructive shell operations |
 | **NONE** | Custom | Specify --disallowed-tools |
 
 ## Uninstall

@@ -61,8 +61,7 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
     Execute Cortex with streaming JSON output in programmatic mode.
 
     Uses --output-format stream-json for streaming results.
-    Tools are controlled via --allowed-tools allowlist (envelope mode) or
-    --disallowed-tools blocklist (prompt mode) for safety.
+    Tools are controlled via --disallowed-tools blocklists for safety.
 
     Args:
         prompt: The enriched prompt to send to Cortex

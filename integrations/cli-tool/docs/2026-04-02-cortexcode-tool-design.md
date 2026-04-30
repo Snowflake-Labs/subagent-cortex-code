@@ -1,5 +1,12 @@
 # Cortexcode Tool Design Specification (Multi-IDE)
 
+> **Historical note:** This document captures the original April 2026 design.
+> The current implementation defaults to `approval_mode: "prompt"`, uses
+> `--disallowed-tools` envelope blocklists, does not combine `-p` with
+> `--input-format stream-json`, and keeps destructive shell blocks even for
+> RW/DEPLOY envelopes. See `integrations/cli-tool/README.md` and
+> `integrations/codex/SKILL.md` for current operating guidance.
+
 **Date:** April 2, 2026  
 **Status:** Approved  
 **Version:** 1.2
@@ -462,7 +469,7 @@ Define which tools are blocked during Cortex execution:
 - **RO** (Read-Only): Blocks Edit, Write, destructive Bash commands
 - **RW** (Read-Write): Blocks destructive operations (rm -rf, sudo)
 - **RESEARCH**: Read access plus web tools, blocks write operations
-- **DEPLOY**: Full access with no blocklist (use cautiously)
+- **DEPLOY**: Deployment operations; destructive shell commands remain blocked in the current implementation
 - **NONE**: Custom blocklist via --disallowed-tools parameter
 
 Envelopes enforced via `--disallowed-tools` flag to Cortex CLI.

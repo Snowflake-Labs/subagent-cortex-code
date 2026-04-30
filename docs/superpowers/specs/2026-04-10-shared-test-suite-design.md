@@ -1,5 +1,10 @@
 # Test Suite Design: Shared Scripts Validation
 
+> **Historical note:** This spec predates the current security-hardening PR.
+> Current tests assert that wrappers do not use `--input-format` with `-p`, use
+> `--disallowed-tools` for envelope restrictions, and default shipped configs to
+> `approval_mode: "prompt"`.
+
 **Date:** 2026-04-10  
 **Status:** Approved  
 **Context:** Monorepo migration with 4 integrations sharing common code

@@ -82,12 +82,12 @@ See [`integrations/claude-code/README.md`](integrations/claude-code/README.md) f
 npx skills add snowflake-labs/subagent-cortex-code --copy --global
 ```
 
-This installs `skills/cortex-code/` to `~/.cursor/skills-cursor/cortex-code/`.
+This installs `skills/cortex-code/` to `~/.cursor/skills/cortex-code/`.
 
 **Step 2 — Activate the auto-routing rule:**
 ```bash
 mkdir -p ~/.cursor/rules
-cp ~/.cursor/skills-cursor/cortex-code/cortex-snowflake-routing.mdc ~/.cursor/rules/
+cp ~/.cursor/skills/cortex-code/cortex-snowflake-routing.mdc ~/.cursor/rules/
 ```
 
 **Step 3 — Restart Cursor.**
@@ -96,7 +96,7 @@ Without the routing rule you type `/cortex-code your question`. With it, Cursor 
 
 **Verify:**
 ```bash
-ls ~/.cursor/skills-cursor/cortex-code/SKILL.md
+ls ~/.cursor/skills/cortex-code/SKILL.md
 ls ~/.cursor/rules/cortex-snowflake-routing.mdc
 ```
 
@@ -134,7 +134,7 @@ cp ~/.codeium/windsurf/skills/cortex-code/config.yaml.example \
 
 Codex uses the `cortexcode-tool` CLI directly — no skill directory needed.
 
-> **Important:** Do NOT run `npx skills add` for Codex. The skill-based approach hangs in Codex's sandbox because it requires interactive approval prompts. Use the CLI install below instead.
+> **Important:** Do NOT run `npx skills add` for Codex. Codex uses the `cortexcode-tool` CLI so the agent can request sandbox/network approval in chat, then run the approved command with `--yes`. Use the CLI install below instead.
 
 ```bash
 git clone https://github.com/Snowflake-Labs/subagent-cortex-code.git
@@ -153,6 +153,11 @@ cortexcode-tool --version
 cortexcode-tool "How many databases do I have in Snowflake?" --envelope RO
 ```
 
+The second command is a direct terminal smoke test and may ask for approval in
+the terminal. Inside a Codex chat, Codex should first ask you to approve the
+planned Cortex Code execution, then retry the approved foreground command with
+`--yes`.
+
 **Usage from Codex sessions:**
 
 First time — paste into a Codex session to confirm the tool is discoverable:
@@ -161,12 +166,14 @@ which cortexcode-tool
 cortexcode-tool --help
 ```
 
-Once discovered, Codex invokes `cortexcode-tool` for Snowflake questions automatically. Both explicit and implicit prompts work — no `--envelope` needed:
+Once discovered, Codex invokes `cortexcode-tool` for Snowflake questions automatically. For read-only Snowflake questions, the approved command should look like this:
 ```
-# Explicit
-cortexcode-tool "How many databases do I have in Snowflake?"
+cortexcode-tool --yes "How many databases do I have in Snowflake?" --envelope RO
+```
 
-# Implicit — Codex detects Snowflake intent and calls cortexcode-tool on its own
+Implicit prompts also work — Codex detects Snowflake intent, asks for approval,
+and calls `cortexcode-tool` on your behalf:
+```
 How many databases do I have in Snowflake?
 ```
 
@@ -291,7 +298,7 @@ security:
 | **RO** (Read-Only) | Queries and reads | Edit, Write, destructive Bash |
 | **RW** (Read-Write) | Data modifications | Destructive operations (rm -rf, sudo) |
 | **RESEARCH** | Exploratory work | Write operations |
-| **DEPLOY** | Full access | None |
+| **DEPLOY** | Deployment operations | Destructive shell operations |
 | **NONE** | Custom blocklist | Specify via --disallowed-tools |
 
 ### Built-in Protections
@@ -382,7 +389,7 @@ cortex connections create   # to add one
 **Skill not loading (Claude Code / Cursor):**
 ```bash
 ls ~/.claude/skills/cortex-code/SKILL.md                    # Claude Code
-ls ~/.cursor/skills-cursor/cortex-code/SKILL.md             # Cursor
+ls ~/.cursor/skills/cortex-code/SKILL.md             # Cursor
 ls ~/.codeium/windsurf/skills/cortex-code/SKILL.md          # Windsurf
 # If missing, re-run: npx skills add snowflake-labs/subagent-cortex-code --copy --global
 ```

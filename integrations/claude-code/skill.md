@@ -168,7 +168,7 @@ Determine the appropriate security envelope based on the operation:
 - **RO** (Read-Only): For queries and read operations - blocks Edit, Write, destructive Bash
 - **RW** (Read-Write): For data modifications - allows most operations, blocks destructive Bash
 - **RESEARCH**: For exploratory work - read access plus web tools
-- **DEPLOY**: For full access - no blocklist (use cautiously)
+- **DEPLOY**: For deployment operations - blocks destructive Bash commands
 - **NONE**: Custom blocklist via --disallowed-tools
 
 ### Step 4: Enrich Context for Cortex
@@ -221,7 +221,7 @@ This script:
 - **RO** (Read-Only): Blocks Edit, Write, destructive Bash commands
 - **RW** (Read-Write): Blocks destructive operations like rm -rf, sudo
 - **RESEARCH**: Read access plus web tools, blocks write operations
-- **DEPLOY**: Full access with no blocklist
+- **DEPLOY**: Deployment operations, blocks destructive Bash commands
 - **NONE**: Custom blocklist via --disallowed-tools parameter
 
 **Event Stream Handling**:
@@ -319,7 +319,7 @@ Each Cortex invocation is stateless. Context must be explicitly provided via enr
 Choose envelopes based on operation risk:
 1. **Start with RO or RW**: Most operations fit here
 2. **Use RESEARCH**: When web access is needed for exploratory work
-3. **Use DEPLOY**: Only for operations requiring full access (e.g., git push, sudo)
+3. **Use DEPLOY**: Only for deployment-style operations that require broader non-destructive tool access
 4. **Use NONE with custom blocklist**: When fine-grained control is needed
 
 ### Performance Considerations
