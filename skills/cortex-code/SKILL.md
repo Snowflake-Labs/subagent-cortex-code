@@ -240,13 +240,13 @@ $PYTHON scripts/execute_cortex.py \
 ```
 
 This script:
-1. Invokes `cortex -p "prompt" --output-format stream-json --input-format stream-json`
-2. Uses stream JSON mode for non-TTY execution without the `--bypass` flag
+1. Invokes `cortex -p "prompt" --output-format stream-json`
+2. Uses print mode for prompt delivery and stream JSON output for non-TTY parsing
 3. Applies envelope-based security via `--disallowed-tools` blocklist for safety
 4. Parses NDJSON event stream in real-time
 5. Detects tool use events and execution results
 
-**Key Insight**: `--input-format stream-json` enables programmatic non-TTY execution. In `auto` and `envelope_only` modes, non-blocked tool calls execute without interactive permission prompts, so those modes must remain trusted and opt-in.
+**Key Insight**: The wrapper intentionally does not combine `-p` with `--input-format stream-json`. Cortex reserves `--input-format` for JSON stdin input; with closed stdin, that combination can emit only an init event and exit before processing the prompt.
 
 **Security Envelopes**:
 - **RO** (Read-Only): Blocks Edit, Write, destructive Bash commands
@@ -335,7 +335,7 @@ The skill uses a security wrapper that provides:
 When using auto or envelope_only modes:
 - All tool calls are automatically approved without interactive prompts
 - Works for built-in tools (Read, Write, Edit, Bash, Grep, Glob) and non-builtin tools (snowflake_sql_execute, data_diff, MCP tools)
-- Uses stream JSON mode for non-TTY execution (stdin is closed by the wrapper)
+- Uses print mode for prompt delivery and stream JSON mode for non-TTY output parsing
 - Security is controlled via `--disallowed-tools` blocklist instead of interactive approval; use these modes only in trusted contexts
 
 ### Stateless Execution
@@ -429,7 +429,7 @@ grep audit_log_path config.yaml
 ### Error: Tools still requiring approval
 **Cause**: Approval mode, envelope blocklist, or stream JSON invocation is misconfigured
 
-**Solution**: Ensure `--output-format stream-json --input-format stream-json` are present, stdin is closed by the wrapper, and the configured envelope does not block the intended tool.
+**Solution**: Ensure the wrapper invokes `cortex -p "..." --output-format stream-json` without `--input-format`, and that the configured envelope does not block the intended tool.
 
 ### Issue: Routing sends Snowflake query to your coding agent
 **Cause**: Routing logic didn't detect Snowflake keywords

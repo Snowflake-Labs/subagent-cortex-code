@@ -322,7 +322,7 @@ This is **future-proof**: new Cortex releases with additional skills work automa
 
 Cortex is invoked with stream JSON output for non-TTY execution:
 ```bash
-cortex -p "ENRICHED_PROMPT" --output-format stream-json --input-format stream-json
+cortex -p "ENRICHED_PROMPT" --output-format stream-json
 ```
 Security is enforced via `--disallowed-tools` blocklist (controlled by the chosen envelope). Auto and envelope-only modes are trusted, opt-in modes because they approve non-blocked tools without an interactive prompt.
 

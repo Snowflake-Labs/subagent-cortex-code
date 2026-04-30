@@ -73,12 +73,12 @@ def test_execute_cortex_command_structure():
         assert "test prompt" in cmd
         assert "--output-format" in cmd
         assert "stream-json" in cmd
-        assert "--input-format" in cmd
+        assert "--input-format" not in cmd
 
 
 @pytest.mark.unit
-def test_execute_cortex_stdin_devnull():
-    """Test stdin=DEVNULL to prevent hanging."""
+def test_execute_cortex_print_mode_closes_stdin():
+    """Test print-mode prompt delivery closes stdin without JSON input mode."""
     with patch('shared.scripts.execute_cortex.subprocess.Popen') as mock_popen:
         # Configure mock
         mock_process = MagicMock()
@@ -91,7 +91,10 @@ def test_execute_cortex_stdin_devnull():
         # Execute
         list(execute_cortex_streaming("test prompt"))
 
-        # Verify stdin=DEVNULL
+        # Verify stdin=DEVNULL and --input-format is absent. Combining -p with
+        # stream-json input mode makes Cortex wait for JSON stdin and exit early.
+        cmd = mock_popen.call_args[0][0]
+        assert "--input-format" not in cmd
         call_kwargs = mock_popen.call_args[1]
         assert call_kwargs['stdin'] == subprocess.DEVNULL
 

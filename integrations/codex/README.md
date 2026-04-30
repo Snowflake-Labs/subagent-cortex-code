@@ -121,7 +121,7 @@ cat ~/.local/lib/cortexcode-tool/config.yaml | grep approval_mode
 
 # Verify Cortex connection works
 cortex connections list
-cortex -p "SHOW DATABASES;" --output-format stream-json --input-format stream-json
+cortex -p "SHOW DATABASES;" --output-format stream-json
 ```
 
 **Wrong connection used:**

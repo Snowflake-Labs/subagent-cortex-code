@@ -24,6 +24,11 @@ if ! command -v cortexcode-tool &>/dev/null; then
     fi
 else
     echo "✓ cortexcode-tool already installed: $(which cortexcode-tool)"
+    if ! cortexcode-tool --version &>/dev/null; then
+        echo "Existing cortexcode-tool failed verification. Reinstalling..."
+        bash "$REPO_ROOT/integrations/cli-tool/setup.sh"
+        echo ""
+    fi
 fi
 
 # ── Step 2: Auto-detect active Cortex connection ───────────────────────────

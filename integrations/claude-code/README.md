@@ -75,7 +75,7 @@ When you ask a Snowflake-related question:
 
 1. Claude Code loads the skill and calls `scripts/route_request.py` to classify the request
 2. If routed to Cortex: Claude Code enriches the prompt with session context, then calls `scripts/execute_cortex.py`
-3. `execute_cortex.py` runs `cortex -p "..." --output-format stream-json --input-format stream-json`
+3. `execute_cortex.py` runs `cortex -p "..." --output-format stream-json`
 4. Results stream back and Claude Code presents them to you
 
 **Routing Principle**: ONLY Snowflake operations → Cortex. Everything else → Claude Code handles directly.

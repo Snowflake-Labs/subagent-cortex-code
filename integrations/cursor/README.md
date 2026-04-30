@@ -118,7 +118,7 @@ ls ~/.cursor/rules/cortex-snowflake-routing.mdc
 **Cortex hangs or no output:** Check your Cortex connection is active:
 ```bash
 cortex connections list
-cortex -p "SHOW DATABASES;" --output-format stream-json --input-format stream-json
+cortex -p "SHOW DATABASES;" --output-format stream-json
 ```
 
 **Rule not auto-triggering:** Confirm the `.mdc` file is in `~/.cursor/rules/` (global) not just in `~/.cursor/skills-cursor/cortex-code/`.

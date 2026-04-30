@@ -98,7 +98,7 @@ class TestApprovalModeParameters:
 
     @patch('execute_cortex.subprocess.Popen')
     def test_approval_mode_auto_default(self, mock_popen):
-        """Auto mode should be the default (existing behavior)."""
+        """Auto mode should use print-mode prompt delivery."""
         mock_process = self._setup_mock_process(mock_popen)
 
         result = execute_cortex_streaming(
@@ -106,10 +106,11 @@ class TestApprovalModeParameters:
             approval_mode="auto"
         )
 
-        # In auto mode, no special tool restrictions beyond envelope
         cmd = mock_popen.call_args[0][0]
-        assert "--input-format" in cmd
+        assert "-p" in cmd
+        assert "Test prompt" in cmd
         assert "stream-json" in cmd
+        assert "--input-format" not in cmd
 
     @patch('execute_cortex.subprocess.Popen')
     def test_approval_mode_prompt_with_allowed_tools(self, mock_popen):

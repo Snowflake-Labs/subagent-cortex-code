@@ -197,13 +197,13 @@ python scripts/execute_cortex.py \
 ```
 
 This script:
-1. Invokes `cortex -p "prompt" --output-format stream-json --input-format stream-json`
-2. Uses `--input-format stream-json` to enable programmatic mode with auto-approval of all tools
+1. Invokes `cortex -p "prompt" --output-format stream-json`
+2. Uses print mode for prompt delivery and stream JSON output for non-TTY parsing
 3. Applies envelope-based security via `--disallowed-tools` blocklist for safety
 4. Parses NDJSON event stream in real-time
 5. Detects tool use events and execution results
 
-**Key Insight**: `--input-format stream-json` puts Cortex in programmatic mode where all tool calls auto-execute without interactive permission prompts. This works for both built-in and non-builtin tools (snowflake_sql_execute, data_diff, MCP tools, etc.) without requiring `--bypass` or `--dangerously-allow-all-tool-calls` which may be disabled by organization policy.
+**Key Insight**: The wrapper intentionally does not combine `-p` with `--input-format stream-json`. Cortex reserves `--input-format` for JSON stdin input; with closed stdin, that combination can emit only an init event and exit before processing the prompt.
 
 **Security Envelopes**:
 - **RO** (Read-Only): Blocks Edit, Write, destructive Bash commands
@@ -221,7 +221,7 @@ This script:
 
 With the security wrapper:
 - **prompt mode**: User approves BEFORE execution (no mid-execution prompts)
-- **auto/envelope_only modes**: All tools auto-approved via `--input-format stream-json`
+- **auto/envelope_only modes**: Non-blocked tools execute under the configured envelope and audit policy
 
 The security wrapper handles permission management through:
 1. **Upfront approval** (prompt mode): User approves predicted tools before execution
@@ -384,9 +384,9 @@ grep audit_log_path config.yaml
 ```
 
 ### Error: Tools still requiring approval
-**Cause**: Missing `--input-format stream-json` flag
+**Cause**: Approval mode, envelope blocklist, or stream JSON invocation is misconfigured
 
-**Solution**: Ensure both `--output-format stream-json` AND `--input-format stream-json` are present. The input format flag is what enables programmatic auto-approval mode. The security wrapper handles this automatically.
+**Solution**: Ensure the wrapper invokes `cortex -p "..." --output-format stream-json` without `--input-format`, and that the configured envelope does not block the intended tool.
 
 ### Issue: Routing sends Snowflake query to Claude Code
 **Cause**: Routing logic didn't detect Snowflake keywords

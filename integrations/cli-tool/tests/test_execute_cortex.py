@@ -23,7 +23,7 @@ def _disallowed_from(cmd):
 
 
 @patch("cortexcode_tool.core.execute_cortex.subprocess.Popen")
-def test_uses_stream_json_without_bypass(mock_popen):
+def test_uses_print_mode_stream_json_without_bypass(mock_popen):
     mock_process = MagicMock()
     mock_process.stdout = []
     mock_process.stderr = []
@@ -34,7 +34,9 @@ def test_uses_stream_json_without_bypass(mock_popen):
     execute_cortex_streaming("test prompt", approval_mode="auto", envelope="RO")
 
     cmd = mock_popen.call_args[0][0]
-    assert "--input-format" in cmd
+    assert "-p" in cmd
+    assert "test prompt" in cmd
+    assert "--input-format" not in cmd
     assert "stream-json" in cmd
     assert "--bypass" not in cmd
     assert mock_popen.call_args[1]["stdin"] == subprocess.DEVNULL

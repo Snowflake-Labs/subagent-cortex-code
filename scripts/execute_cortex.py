@@ -67,16 +67,14 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
     Returns:
         Dictionary with execution results
     """
-    # Build command with programmatic auto-approval mode.
-    # --input-format stream-json enables headless auto-approval of all tool calls
-    # (including snowflake_sql_execute and MCP tools) without --bypass or
-    # --dangerously-allow-all-tool-calls which may be blocked by org policy.
-    # Envelope security is enforced via --disallowed-tools blocklist.
+    # Build command in print mode. The prompt is delivered with -p; do not add
+    # --input-format stream-json here. Cortex treats that flag as JSON stdin
+    # input mode, so combining it with -p and closed stdin can emit only the
+    # initial session event and exit before the prompt is processed.
     cmd = [
         "cortex",
         "-p", prompt,
-        "--output-format", "stream-json",
-        "--input-format", "stream-json"
+        "--output-format", "stream-json"
     ]
 
     # Add connection if specified
@@ -84,9 +82,8 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
         cmd.extend(["-c", connection])
 
     # Step 1: Handle approval mode — build disallowed tools list for envelope security.
-    # Note: --input-format stream-json auto-approves tools; --disallowed-tools
-    # enforces the security boundary. Do NOT use --allowed-tools: it creates an
-    # "must match pattern" check that blocks Snowflake MCP tools.
+    # Do NOT use --allowed-tools: it creates a "must match pattern" check that
+    # blocks Snowflake MCP tools.
     final_disallowed_tools = disallowed_tools or []
 
     if approval_mode == "prompt":
@@ -103,7 +100,6 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
 
     elif approval_mode in ["envelope_only", "auto"]:
         # Envelope-only or auto mode: apply envelope-based security via blocklist.
-        # --input-format stream-json (set above) auto-approves all non-blocked tools.
         envelope_tools = []
         if envelope == "RO":
             # Read-only: block all write operations
@@ -132,7 +128,7 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
         for tool in final_disallowed_tools:
             cmd.extend(["--disallowed-tools", tool])
 
-    debug_cmd = f"cortex -p \"...\" --output-format stream-json --input-format stream-json"
+    debug_cmd = f"cortex -p \"...\" --output-format stream-json"
     if connection:
         debug_cmd += f" -c {connection}"
     if final_disallowed_tools:
@@ -158,9 +154,8 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
             pass
 
     try:
-        # Start process. stdin=DEVNULL is critical: --input-format stream-json
-        # puts Cortex in programmatic mode but it must not wait on stdin for
-        # approval responses — closing it lets auto-approval proceed immediately.
+        # Start process. stdin=DEVNULL prevents accidental reads from the parent
+        # terminal; prompt delivery is handled exclusively by -p print mode.
         process = subprocess.Popen(
             cmd,
             stdout=subprocess.PIPE,
