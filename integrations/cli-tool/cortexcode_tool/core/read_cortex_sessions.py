@@ -9,6 +9,8 @@ import argparse
 from pathlib import Path
 from datetime import datetime
 
+MAX_SESSION_BYTES = 5 * 1024 * 1024
+
 from cortexcode_tool.security.prompt_sanitizer import PromptSanitizer
 
 
@@ -41,8 +43,9 @@ def parse_session_file(session_path, sanitize=True):
         Dictionary with session data, or None on error
     """
     try:
-        with open(session_path, 'r') as f:
-            lines = f.readlines()
+        if session_path.stat().st_size > MAX_SESSION_BYTES:
+            print(f"Skipping oversized session file: {session_path}", file=sys.stderr)
+            return None
 
         # Initialize sanitizer if needed
         sanitizer = PromptSanitizer() if sanitize else None
@@ -56,52 +59,53 @@ def parse_session_file(session_path, sanitize=True):
             "result": None
         }
 
-        for line in lines:
-            if not line.strip():
-                continue
+        with open(session_path, 'r') as f:
+            for line in f:
+                if not line.strip():
+                    continue
 
-            try:
-                event = json.loads(line)
-                event_type = event.get("type")
+                try:
+                    event = json.loads(line)
+                    event_type = event.get("type")
 
-                if event_type == "system" and event.get("subtype") == "init":
-                    session_data["session_id"] = event.get("session_id")
+                    if event_type == "system" and event.get("subtype") == "init":
+                        session_data["session_id"] = event.get("session_id")
 
-                elif event_type == "user":
-                    # Check if this is a tool result or user message
-                    message = event.get("message", {})
-                    content = message.get("content", [])
+                    elif event_type == "user":
+                        # Check if this is a tool result or user message
+                        message = event.get("message", {})
+                        content = message.get("content", [])
 
-                    # Extract user text if present
-                    for item in content:
-                        if item.get("type") == "text":
-                            text = item.get("text", "")
-                            # Sanitize user prompts if enabled
-                            if sanitizer:
-                                text = sanitizer.sanitize(text)
-                            session_data["user_prompts"].append(text)
+                        # Extract user text if present
+                        for item in content:
+                            if item.get("type") == "text":
+                                text = item.get("text", "")
+                                # Sanitize user prompts if enabled
+                                if sanitizer:
+                                    text = sanitizer.sanitize(text)
+                                session_data["user_prompts"].append(text)
 
-                elif event_type == "assistant":
-                    message = event.get("message", {})
-                    content = message.get("content", [])
+                    elif event_type == "assistant":
+                        message = event.get("message", {})
+                        content = message.get("content", [])
 
-                    for item in content:
-                        if item.get("type") == "text":
-                            text = item.get("text", "")
-                            # Sanitize assistant responses if enabled
-                            if sanitizer:
-                                text = sanitizer.sanitize(text)
-                            session_data["assistant_responses"].append(text)
-                        elif item.get("type") == "tool_use":
-                            tool_name = item.get("name")
-                            if tool_name:
-                                session_data["tools_used"].append(tool_name)
+                        for item in content:
+                            if item.get("type") == "text":
+                                text = item.get("text", "")
+                                # Sanitize assistant responses if enabled
+                                if sanitizer:
+                                    text = sanitizer.sanitize(text)
+                                session_data["assistant_responses"].append(text)
+                            elif item.get("type") == "tool_use":
+                                tool_name = item.get("name")
+                                if tool_name:
+                                    session_data["tools_used"].append(tool_name)
 
-                elif event_type == "result":
-                    session_data["result"] = event.get("result")
+                    elif event_type == "result":
+                        session_data["result"] = event.get("result")
 
-            except json.JSONDecodeError:
-                continue
+                except json.JSONDecodeError:
+                    continue
 
         return session_data
 

@@ -4,6 +4,7 @@ import json
 import os
 import re
 import time
+import warnings
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
@@ -19,8 +20,17 @@ class CacheManager:
         self.cache_dir = Path(cache_dir)
         self.cache_dir.mkdir(parents=True, exist_ok=True)
 
-        # Set directory permissions to 0700 (owner only)
-        os.chmod(self.cache_dir, 0o700)
+        # Set directory permissions to 0700 (owner only). Some managed or
+        # sandboxed filesystems deny chmod on existing home-cache directories;
+        # keep the cache usable rather than failing CLI startup.
+        try:
+            os.chmod(self.cache_dir, 0o700)
+        except PermissionError as exc:
+            warnings.warn(
+                f"Could not set secure permissions on cache directory {self.cache_dir}: {exc}",
+                RuntimeWarning,
+                stacklevel=2,
+            )
 
     def _validate_key(self, key: str) -> None:
         """Validate cache key to prevent path traversal."""

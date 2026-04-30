@@ -463,7 +463,7 @@ security:
     - "RO"     # Read-only
     - "RW"     # Read-write
     - "RESEARCH"  # Research mode
-    - "DEPLOY"    # Full access (use cautiously)
+    - "DEPLOY"    # Deployment operations; destructive shell commands remain blocked
 ```
 
 ---

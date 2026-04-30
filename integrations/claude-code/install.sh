@@ -31,8 +31,8 @@ cp "$REPO_ROOT/integrations/claude-code/skill.md" "$TARGET/"
 cp "$REPO_ROOT/integrations/claude-code/config.yaml.example" "$TARGET/"
 cp "$REPO_ROOT/integrations/claude-code/config.yaml" "$TARGET/"
 
-# Note: config.yaml with approval_mode: "auto" is created for non-interactive CLI usage
-# Users can customize via config.yaml.example if needed
+# Note: config.yaml defaults to approval_mode: "prompt" for interactive safety.
+# Users can opt into auto/envelope_only modes via config.yaml.example if needed.
 
 # Make scripts executable
 chmod +x "$TARGET/scripts/"*.py

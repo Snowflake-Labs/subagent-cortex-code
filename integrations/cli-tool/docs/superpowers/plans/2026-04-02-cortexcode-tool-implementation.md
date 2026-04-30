@@ -1,4 +1,11 @@
-# Cortexcode Tool Implementation Plan
+# Cortexcode Tool Historical Implementation Plan
+
+> **Historical note:** This plan predates the current security-hardening PR.
+> Current wrappers use `cortex -p ... --output-format stream-json` without
+> `--input-format`, enforce envelopes with `--disallowed-tools`, default shipped
+> configs to `approval_mode: "prompt"`, and keep destructive shell operations
+> blocked for RW/DEPLOY. See the live README and integration docs for current
+> behavior.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -1249,7 +1256,7 @@ def test_execute_cortex_builds_command():
         assert "cortex" in call_args
         assert "--output-format" in call_args
         assert "stream-json" in call_args
-        assert "--input-format" in call_args
+        assert "--input-format" not in call_args
 
 def test_execute_cortex_applies_envelope():
     """Test security envelope enforcement."""

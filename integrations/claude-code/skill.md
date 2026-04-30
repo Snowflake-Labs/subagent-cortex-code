@@ -124,11 +124,11 @@ Before executing Cortex, the security wrapper handles approval based on configur
 #### Step 3a: Check Approval Mode
 
 Read configuration to determine approval behavior:
-- **auto mode** (default for CLI): Auto-approve with audit logging, skip to Step 4
+- **auto mode** (trusted opt-in): Auto-approve with audit logging, skip to Step 4
 - **envelope_only mode**: Auto-approve, no tool prediction, skip to Step 4
 - **prompt mode**: Requires user approval, proceed to Step 3b
 
-**Note**: With `approval_mode: "auto"` (default in config.yaml), **skip Step 3b entirely** and proceed directly to Step 4.
+**Note**: The shipped Claude Code config defaults to `approval_mode: "prompt"`. Only skip Step 3b when the user or organization policy explicitly opts into `auto` or `envelope_only`.
 
 #### Step 3b: Handle Approval (prompt mode only)
 
@@ -168,7 +168,7 @@ Determine the appropriate security envelope based on the operation:
 - **RO** (Read-Only): For queries and read operations - blocks Edit, Write, destructive Bash
 - **RW** (Read-Write): For data modifications - allows most operations, blocks destructive Bash
 - **RESEARCH**: For exploratory work - read access plus web tools
-- **DEPLOY**: For full access - no blocklist (use cautiously)
+- **DEPLOY**: For deployment operations - blocks destructive Bash commands
 - **NONE**: Custom blocklist via --disallowed-tools
 
 ### Step 4: Enrich Context for Cortex
@@ -209,19 +209,19 @@ python scripts/execute_cortex.py \
 ```
 
 This script:
-1. Invokes `cortex -p "prompt" --output-format stream-json --bypass`
-2. Uses `--bypass` for headless auto-approval without interactive stdin
+1. Invokes `cortex -p "prompt" --output-format stream-json`
+2. Uses print mode for prompt delivery and stream JSON output for non-TTY parsing
 3. Applies envelope-based security via `--disallowed-tools` blocklist for safety
 4. Parses NDJSON event stream in real-time
 5. Detects tool use events and execution results
 
-**Key Insight**: `--bypass` puts Cortex in headless mode where all tool calls auto-execute without interactive permission prompts. This works for both built-in and non-builtin tools (snowflake_sql_execute, data_diff, MCP tools, etc.) without a TTY or stdin. Note: `--input-format stream-json` does NOT work for headless execution — it hangs waiting for stdin in non-TTY environments.
+**Key Insight**: The wrapper intentionally does not combine `-p` with `--input-format stream-json`. Cortex reserves `--input-format` for JSON stdin input; with closed stdin, that combination can emit only an init event and exit before processing the prompt.
 
 **Security Envelopes**:
 - **RO** (Read-Only): Blocks Edit, Write, destructive Bash commands
 - **RW** (Read-Write): Blocks destructive operations like rm -rf, sudo
 - **RESEARCH**: Read access plus web tools, blocks write operations
-- **DEPLOY**: Full access with no blocklist
+- **DEPLOY**: Deployment operations, blocks destructive Bash commands
 - **NONE**: Custom blocklist via --disallowed-tools parameter
 
 **Event Stream Handling**:
@@ -233,7 +233,7 @@ This script:
 
 With the security wrapper:
 - **prompt mode**: User approves BEFORE execution (no mid-execution prompts)
-- **auto/envelope_only modes**: All tools auto-approved via `--bypass` flag
+- **auto/envelope_only modes**: Non-blocked tools are auto-approved in stream JSON mode
 
 The security wrapper handles permission management through:
 1. **Upfront approval** (prompt mode): User approves predicted tools before execution
@@ -304,8 +304,8 @@ The skill uses a security wrapper that provides:
 When using auto or envelope_only modes:
 - All tool calls are automatically approved without interactive prompts
 - Works for built-in tools (Read, Write, Edit, Bash, Grep, Glob) and non-builtin tools (snowflake_sql_execute, data_diff, MCP tools)
-- Uses `--bypass` flag for non-TTY headless execution (stdin is ignored)
-- Security is controlled via `--disallowed-tools` blocklist instead of interactive approval
+- Uses print mode for prompt delivery and stream JSON mode for non-TTY output parsing
+- Security is controlled via `--disallowed-tools` blocklist instead of interactive approval; use these modes only in trusted contexts
 
 ### Stateless Execution
 Each Cortex invocation is stateless. Context must be explicitly provided via enriched prompts.
@@ -319,7 +319,7 @@ Each Cortex invocation is stateless. Context must be explicitly provided via enr
 Choose envelopes based on operation risk:
 1. **Start with RO or RW**: Most operations fit here
 2. **Use RESEARCH**: When web access is needed for exploratory work
-3. **Use DEPLOY**: Only for operations requiring full access (e.g., git push, sudo)
+3. **Use DEPLOY**: Only for deployment-style operations that require broader non-destructive tool access
 4. **Use NONE with custom blocklist**: When fine-grained control is needed
 
 ### Performance Considerations
@@ -395,9 +395,9 @@ cat ~/.claude/skills/cortex-code/config.yaml | grep audit_log_path
 ```
 
 ### Error: Tools still requiring approval
-**Cause**: Missing `--bypass` flag or approval_mode not set to `auto`/`envelope_only`
+**Cause**: Approval mode, envelope blocklist, or stream JSON invocation is misconfigured
 
-**Solution**: Ensure `--output-format stream-json --bypass` are both present. The `--bypass` flag is what enables headless auto-approval mode. The security wrapper handles this automatically. Note: `--input-format stream-json` does NOT work — it hangs in non-TTY environments.
+**Solution**: Ensure the wrapper invokes `cortex -p "..." --output-format stream-json` without `--input-format`, and that the configured envelope does not block the intended tool.
 
 ### Issue: Routing sends Snowflake query to Claude Code
 **Cause**: Routing logic didn't detect Snowflake keywords

@@ -12,12 +12,21 @@ echo "==> Installing cortexcode-tool..."
 # Check prerequisites
 echo "Checking prerequisites..."
 
-if ! command -v python3 &> /dev/null; then
-    echo "Error: Python 3.8+ required but not found"
+PYTHON_BIN=""
+for candidate in python3 /usr/local/bin/python3 /opt/homebrew/bin/python3; do
+    if command -v "$candidate" &> /dev/null && "$candidate" -c "import sys, yaml; raise SystemExit(0 if sys.version_info >= (3, 8) else 1)" &> /dev/null; then
+        PYTHON_BIN="$(command -v "$candidate")"
+        break
+    fi
+done
+
+if [ -z "$PYTHON_BIN" ]; then
+    echo "Error: Python 3.8+ with PyYAML required but not found"
+    echo "Install PyYAML for your python3, or make a compatible Python available at /usr/local/bin/python3"
     exit 1
 fi
 
-PYTHON_VERSION=$(python3 -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
+PYTHON_VERSION=$("$PYTHON_BIN" -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
 PYTHON_MAJOR=$(echo $PYTHON_VERSION | cut -d'.' -f1)
 PYTHON_MINOR=$(echo $PYTHON_VERSION | cut -d'.' -f2)
 
@@ -56,13 +65,15 @@ cp -r cortexcode_tool "$INSTALL_DIR/"
 
 # Create executable wrapper
 echo "Creating executable..."
-cat > "$BIN_DIR/cortexcode-tool" << EOF
+python_wrapper=$(cat << EOF
 #!/bin/bash
 # PYTHONUNBUFFERED=1 ensures stdout flushes immediately even when redirected to a file.
 # Without this, Python buffers output and the file is empty if the process is killed early.
 export PYTHONUNBUFFERED=1
-exec python3 -c "import sys; sys.path.insert(0, '$INSTALL_DIR'); from cortexcode_tool.main import main; sys.exit(main())" "\$@"
+exec "$PYTHON_BIN" -c "import sys; sys.path.insert(0, '$INSTALL_DIR'); from cortexcode_tool.main import main; sys.exit(main())" "\$@"
 EOF
+)
+printf '%s\n' "$python_wrapper" > "$BIN_DIR/cortexcode-tool"
 
 # Make executable
 chmod +x "$BIN_DIR/cortexcode-tool"
@@ -76,7 +87,7 @@ echo "Detecting active Cortex connection..."
 ACTIVE_CONNECTION=""
 if command -v cortex &>/dev/null; then
     ACTIVE_CONNECTION=$(cortex connections list 2>/dev/null \
-        | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('active_connection',''))" \
+        | "$PYTHON_BIN" -c "import sys,json; d=json.load(sys.stdin); print(d.get('active_connection',''))" \
         2>/dev/null || true)
 fi
 
@@ -100,7 +111,7 @@ cat > "$INSTALL_DIR/config.yaml" << EOF
 # (sandbox blocks ~/.cache/ → PermissionError → tool runs outside sandbox → network works)
 
 security:
-  approval_mode: "auto"
+  approval_mode: "prompt"
   audit_log_path: "~/.cache/cortexcode-tool/audit.log"
   sanitize_prompts: true
   block_credential_paths: true

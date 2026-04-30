@@ -14,7 +14,8 @@ from read_cortex_sessions import (
     parse_session_file,
     summarize_sessions,
     find_recent_sessions,
-    main
+    main,
+    MAX_SESSION_BYTES,
 )
 
 
@@ -341,6 +342,30 @@ class TestCLIFlags:
 
 class TestEdgeCases:
     """Test edge cases and error handling."""
+
+    def test_parse_session_file_rejects_oversized_file(self, tmp_path):
+        """Session parsing should not read unbounded JSONL files into memory."""
+        session_file = tmp_path / "huge_session.jsonl"
+        session_file.write_text("{}\n")
+
+        with patch.object(Path, "stat") as mock_stat:
+            mock_stat.return_value.st_mtime = 1
+            mock_stat.return_value.st_size = MAX_SESSION_BYTES + 1
+            result = parse_session_file(session_file)
+
+        assert result is None
+
+    def test_parse_session_file_streams_lines(self, tmp_path):
+        """Session parsing should iterate the file instead of readlines()."""
+        session_file = tmp_path / "test_session.jsonl"
+        session_file.write_text(json.dumps({"type": "system", "subtype": "init", "session_id": "test123"}) + "\n")
+        handle = mock_open(read_data=session_file.read_text()).return_value
+        handle.readlines.side_effect = AssertionError("readlines should not be used")
+
+        with patch("builtins.open", return_value=handle):
+            result = parse_session_file(session_file)
+
+        assert result is not None
 
     def test_empty_session_file(self, tmp_path):
         """Test parsing an empty session file."""

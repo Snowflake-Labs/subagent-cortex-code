@@ -75,7 +75,7 @@ Envelopes:
 - `RO` — read-only (blocks writes)
 - `RW` — read-write (blocks destructive ops)
 - `RESEARCH` — read + web access
-- `DEPLOY` — full access
+- `DEPLOY` — deployment operations; destructive shell operations remain blocked
 
 ## Package structure
 
@@ -112,12 +112,15 @@ cortex connections list
 cortex connections create
 ```
 
-**Command hangs (approval prompt):**
+**Command waits for approval:**
 ```bash
 # Check approval mode
 cat ~/.local/lib/cortexcode-tool/config.yaml | grep approval_mode
-# For automated use, set: approval_mode: "auto"
 ```
+For direct terminal use, answer the approval prompt. For Codex, ask the user to
+approve the planned Cortex Code execution in chat, then run the same foreground
+command with `--yes`. Keep `approval_mode: "prompt"` unless you have an explicit
+trusted automation requirement.
 
 ---
 

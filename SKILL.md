@@ -156,7 +156,7 @@ Determine the appropriate security envelope based on the operation:
 - **RO** (Read-Only): For queries and read operations - blocks Edit, Write, destructive Bash
 - **RW** (Read-Write): For data modifications - allows most operations, blocks destructive Bash
 - **RESEARCH**: For exploratory work - read access plus web tools
-- **DEPLOY**: For full access - no blocklist (use cautiously)
+- **DEPLOY**: For deployment operations - blocks destructive Bash commands
 - **NONE**: Custom blocklist via --disallowed-tools
 
 ### Step 4: Enrich Context for Cortex
@@ -197,19 +197,19 @@ python scripts/execute_cortex.py \
 ```
 
 This script:
-1. Invokes `cortex -p "prompt" --output-format stream-json --input-format stream-json`
-2. Uses `--input-format stream-json` to enable programmatic mode with auto-approval of all tools
+1. Invokes `cortex -p "prompt" --output-format stream-json`
+2. Uses print mode for prompt delivery and stream JSON output for non-TTY parsing
 3. Applies envelope-based security via `--disallowed-tools` blocklist for safety
 4. Parses NDJSON event stream in real-time
 5. Detects tool use events and execution results
 
-**Key Insight**: `--input-format stream-json` puts Cortex in programmatic mode where all tool calls auto-execute without interactive permission prompts. This works for both built-in and non-builtin tools (snowflake_sql_execute, data_diff, MCP tools, etc.) without requiring `--bypass` or `--dangerously-allow-all-tool-calls` which may be disabled by organization policy.
+**Key Insight**: The wrapper intentionally does not combine `-p` with `--input-format stream-json`. Cortex reserves `--input-format` for JSON stdin input; with closed stdin, that combination can emit only an init event and exit before processing the prompt.
 
 **Security Envelopes**:
 - **RO** (Read-Only): Blocks Edit, Write, destructive Bash commands
 - **RW** (Read-Write): Blocks destructive operations like rm -rf, sudo
 - **RESEARCH**: Read access plus web tools, blocks write operations
-- **DEPLOY**: Full access with no blocklist
+- **DEPLOY**: Deployment operations, blocks destructive Bash commands
 - **NONE**: Custom blocklist via --disallowed-tools parameter
 
 **Event Stream Handling**:
@@ -221,7 +221,7 @@ This script:
 
 With the security wrapper:
 - **prompt mode**: User approves BEFORE execution (no mid-execution prompts)
-- **auto/envelope_only modes**: All tools auto-approved via `--input-format stream-json`
+- **auto/envelope_only modes**: Non-blocked tools execute under the configured envelope and audit policy
 
 The security wrapper handles permission management through:
 1. **Upfront approval** (prompt mode): User approves predicted tools before execution
@@ -292,7 +292,7 @@ The skill uses a security wrapper that provides:
 When using auto or envelope_only modes:
 - All tool calls are automatically approved without interactive prompts
 - Works for built-in tools (Read, Write, Edit, Bash, Grep, Glob) and non-builtin tools (snowflake_sql_execute, data_diff, MCP tools)
-- Bypasses organization policies that block `--bypass` or `--dangerously-allow-all-tool-calls`
+- Avoids using `--bypass` or `--dangerously-allow-all-tool-calls`; organization policies should still govern Cortex execution
 - Security is controlled via `--disallowed-tools` blocklist instead of interactive approval
 
 ### Stateless Execution
@@ -307,7 +307,7 @@ Each Cortex invocation is stateless. Context must be explicitly provided via enr
 Choose envelopes based on operation risk:
 1. **Start with RO or RW**: Most operations fit here
 2. **Use RESEARCH**: When web access is needed for exploratory work
-3. **Use DEPLOY**: Only for operations requiring full access (e.g., git push, sudo)
+3. **Use DEPLOY**: Only for deployment-style operations that require broader non-destructive tool access
 4. **Use NONE with custom blocklist**: When fine-grained control is needed
 
 ### Performance Considerations
@@ -384,9 +384,9 @@ grep audit_log_path config.yaml
 ```
 
 ### Error: Tools still requiring approval
-**Cause**: Missing `--input-format stream-json` flag
+**Cause**: Approval mode, envelope blocklist, or stream JSON invocation is misconfigured
 
-**Solution**: Ensure both `--output-format stream-json` AND `--input-format stream-json` are present. The input format flag is what enables programmatic auto-approval mode. The security wrapper handles this automatically.
+**Solution**: Ensure the wrapper invokes `cortex -p "..." --output-format stream-json` without `--input-format`, and that the configured envelope does not block the intended tool.
 
 ### Issue: Routing sends Snowflake query to Claude Code
 **Cause**: Routing logic didn't detect Snowflake keywords

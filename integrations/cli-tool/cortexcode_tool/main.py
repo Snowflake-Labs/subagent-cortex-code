@@ -7,6 +7,7 @@ Main entry point for the CLI tool.
 import sys
 import argparse
 import logging
+import os
 from typing import List, Optional
 from pathlib import Path
 
@@ -22,6 +23,17 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+
+def should_request_codex_escalation(approved: bool = False) -> bool:
+    """Return True when running inside Codex's network-disabled sandbox.
+
+    Cortex Code must reach Snowflake/Cortex services. In Codex, commands that
+    need network should be re-run by the host with sandbox approval instead of
+    hanging until the Cortex subprocess times out. The override is set by tests
+    and by callers that intentionally run the tool outside the sandbox.
+    """
+    return os.environ.get("CODEX_SANDBOX_NETWORK_DISABLED") == "1" and not approved
 
 
 def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
@@ -58,6 +70,12 @@ Note: Cursor users should use the Claude Code skill (/cortex-code) instead.
     )
 
     parser.add_argument(
+        "--yes",
+        action="store_true",
+        help="Confirm execution after the host coding agent has already obtained user approval"
+    )
+
+    parser.add_argument(
         "--discover-capabilities",
         action="store_true",
         help="Force rediscovery of Cortex capabilities"
@@ -90,7 +108,8 @@ def execute_query(
     query: str,
     config: ConfigManager,
     cache: CacheManager,
-    logger_instance: Optional[AuditLogger]
+    logger_instance: Optional[AuditLogger],
+    approved: bool = False
 ) -> int:
     """Execute a Snowflake query via Cortex Code.
 
@@ -135,7 +154,9 @@ def execute_query(
     # Handle approval if needed
     approval_mode = config.get("security.approval_mode", "prompt")
 
-    if approval_mode == "prompt":
+    if approval_mode == "prompt" and approved:
+        print("✓ Execution approved by host coding agent", file=sys.stderr)
+    elif approval_mode == "prompt":
         # Show approval prompt
         handler = ApprovalHandler()
         predicted_tools = handler.predict_tools(query)
@@ -260,6 +281,15 @@ def main(argv: Optional[List[str]] = None) -> int:
             return 0
 
         elif args.query:
+            if should_request_codex_escalation(approved=args.yes):
+                print(
+                    "cortexcode-tool requires network access to reach Cortex/Snowflake. "
+                    "Approve the planned Cortex Code execution in Codex chat, then retry "
+                    "with --yes.",
+                    file=sys.stderr,
+                )
+                return 2
+
             # Execute query
             audit_logger = None
             if config.get("security.approval_mode") in ["auto", "envelope_only"]:
@@ -267,7 +297,7 @@ def main(argv: Optional[List[str]] = None) -> int:
                     log_path=config.get("security.audit_log_path")
                 )
 
-            return execute_query(args.query, config, cache, audit_logger)
+            return execute_query(args.query, config, cache, audit_logger, approved=args.yes)
 
         else:
             # No command provided

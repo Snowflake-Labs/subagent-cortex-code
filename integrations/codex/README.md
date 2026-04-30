@@ -6,7 +6,7 @@ Codex does not use a skill directory for this integration. Instead, `cortexcode-
 
 ## Why CLI instead of skill?
 
-Codex's sandbox blocks the interactive approval prompts that `cortex -p` requires without `--bypass`. The `cortexcode-tool` wraps `cortex` with `--bypass` and `approval_mode: auto`, making it safe and reliable in non-TTY environments. Codex calls it as a single foreground command and automatically waits for it to complete.
+Codex uses `cortexcode-tool` as a standalone foreground command. The Codex-specific config defaults to `approval_mode: prompt` with the restrictive `RO` envelope so Snowflake reads require explicit approval before execution.
 
 ## Prerequisites
 
@@ -32,10 +32,10 @@ The script:
 
 ```bash
 cortexcode-tool --version
-cortexcode-tool "How many databases do I have in Snowflake?" --envelope RO
+cortexcode-tool --yes "How many databases do I have in Snowflake?" --envelope RO
 ```
 
-Expected: the tool runs for 30–90 seconds, then prints formatted results.
+Expected: after you have approved the planned execution in Codex chat, the tool runs for 30–90 seconds, then prints formatted results.
 
 ## Usage from Codex
 
@@ -50,13 +50,14 @@ Once discovered, Codex will invoke `cortexcode-tool` for Snowflake questions aut
 
 ```bash
 # Explicit
-cortexcode-tool "How many databases do I have in Snowflake?"
+cortexcode-tool --yes "How many databases do I have in Snowflake?"
 
 # Implicit — Codex detects the Snowflake intent and calls cortexcode-tool on its own
 How many databases do I have in Snowflake?
 ```
 
 No need to specify `--envelope` in your prompts. Codex selects the appropriate envelope based on the operation.
+Use `--yes` only after Codex has shown the planned Cortex Code execution and the user has approved it in chat.
 
 Do **not** background the command (`& disown`). Codex automatically waits for foreground commands to complete (30–90 seconds is normal).
 
@@ -71,7 +72,7 @@ Do **not** background the command (`& disown`). Codex automatically waits for fo
 Config example:
 ```yaml
 security:
-  approval_mode: "auto"
+  approval_mode: "prompt"
   audit_log_path: "~/.cache/cortexcode-tool/audit.log"
   cache_dir: "~/.cache/cortexcode-tool"
 
@@ -115,13 +116,13 @@ export PATH="$HOME/.local/bin:$PATH"
 
 **Command hangs in Codex:**
 ```bash
-# Verify approval_mode is auto (not prompt)
+# Verify approval_mode is prompt by default
 cat ~/.local/lib/cortexcode-tool/config.yaml | grep approval_mode
-# Must be: approval_mode: "auto"
+# Must be: approval_mode: "prompt"
 
 # Verify Cortex connection works
 cortex connections list
-cortex -p "SHOW DATABASES;" --bypass --output-format stream-json
+cortex -p "SHOW DATABASES;" --output-format stream-json
 ```
 
 **Wrong connection used:**

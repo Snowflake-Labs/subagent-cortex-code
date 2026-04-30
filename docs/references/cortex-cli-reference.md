@@ -15,10 +15,10 @@ Executes Cortex in headless mode with streaming JSON output.
 
 ### Permission Management
 ```bash
-cortex -p "prompt" --allowed-tools "tool1" "tool2" "tool3"
+cortex -p "prompt" --disallowed-tools "Write" "Edit" "Bash(rm -rf *)"
 ```
 
-Explicitly allows specific tools. Required for headless execution when `--dangerously-allow-all-tool-calls` is disabled by organization.
+Explicitly blocks unsafe tools or command patterns. The Cortex Code wrappers use `--disallowed-tools` for envelope enforcement because `--allowed-tools` can block Snowflake MCP tools by pattern mismatch.
 
 ### Skill Discovery
 ```bash
@@ -107,26 +107,13 @@ Final session result.
 
 ## Permission Denials
 
-When a tool is not in `--allowed-tools`, you'll see:
-
-```json
-{
-  "type": "user",
-  "message": {
-    "content": [{
-      "type": "tool_result",
-      "tool_use_id": "toolu_xxx",
-      "content": "Permission denied: Tool denied: headless mode requires --allowed-tools"
-    }]
-  }
-}
-```
+When a tool is blocked by the current envelope, Cortex returns a permission-denial event in the stream.
 
 **Handling**:
-1. Detect permission denial in event stream
-2. Extract the requested tool from the context
-3. Surface to user via Claude Code's AskUserQuestion
-4. Re-invoke Cortex with updated `--allowed-tools` if approved
+1. Detect the permission denial in the event stream
+2. Extract the requested tool or command pattern from the context
+3. Ask the user to approve a more appropriate envelope, or keep the request blocked
+4. Re-invoke Cortex with the approved envelope/blocklist only when policy allows it
 
 ## Available Tools in Cortex
 
@@ -148,14 +135,14 @@ When a tool is not in `--allowed-tools`, you'll see:
 ```bash
 cortex -p "Show top 10 customers" \
   --output-format stream-json \
-  --allowed-tools "snowflake_sql_execute" "bash"
+  --disallowed-tools "Edit" "Write" "Bash"
 ```
 
 ### Data Quality Check
 ```bash
 cortex -p "Check data quality for SALES_DATA table" \
   --output-format stream-json \
-  --allowed-tools "snowflake_sql_execute" "bash" "read" "write"
+  --disallowed-tools "Bash(rm *)" "Bash(rm -rf *)" "Bash(sudo *)"
 ```
 
 ### With Context Enrichment
@@ -169,7 +156,7 @@ Ran RFM analysis on customers table.
 # Current Request
 Create a dynamic table for high-value customers" \
   --output-format stream-json \
-  --allowed-tools "snowflake_sql_execute" "bash" "read"
+  --disallowed-tools "Bash(rm *)" "Bash(rm -rf *)" "Bash(sudo *)"
 ```
 
 ## Configuration Files
@@ -205,9 +192,9 @@ cortex connections list
 
 ### Tool Permission Errors
 ```
-Permission denied: Tool denied: headless mode requires --allowed-tools
+Permission denied: Tool denied by envelope or policy
 ```
-**Solution**: Add tool to `--allowed-tools` list.
+**Solution**: Use the least-privileged envelope that supports the request. Do not switch to broader envelopes unless the user explicitly approves and policy allows it.
 
 ### Model Errors
 ```
@@ -217,17 +204,17 @@ Error: Rate limit exceeded
 
 ## Best Practices
 
-1. **Start Conservative**: Begin with minimal tool set, expand as needed
+1. **Start Conservative**: Begin with RO or RW envelopes and expand only when approved
 2. **Enrich Context**: Always provide relevant background from Claude session
 3. **Read Sessions**: Check recent Cortex work to avoid duplicate operations
 4. **Handle Streams**: Parse NDJSON line-by-line, don't wait for completion
 5. **Timeout Handling**: Set reasonable timeouts (30-60s for complex queries)
-6. **Error Recovery**: Detect permission denials early, prompt user immediately
+6. **Error Recovery**: Detect permission denials early and ask before changing envelopes
 
 ## Limitations
 
 - **No Persistent Sessions**: Each invocation is stateless
 - **No `--resume`**: Session resumption not available in headless mode
 - **Organization Policies**: Some flags may be blocked (e.g., `--bypass`, `--dangerously-allow-all-tool-calls`)
-- **Tool Restrictions**: Only tools in `--allowed-tools` can be used
+- **Tool Restrictions**: Envelope blocklists are enforced through `--disallowed-tools`
 - **Rate Limits**: Subject to Snowflake Cortex AI rate limits

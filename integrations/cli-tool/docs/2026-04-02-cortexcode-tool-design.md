@@ -1,5 +1,12 @@
 # Cortexcode Tool Design Specification (Multi-IDE)
 
+> **Historical note:** This document captures the original April 2026 design.
+> The current implementation defaults to `approval_mode: "prompt"`, uses
+> `--disallowed-tools` envelope blocklists, does not combine `-p` with
+> `--input-format stream-json`, and keeps destructive shell blocks even for
+> RW/DEPLOY envelopes. See `integrations/cli-tool/README.md` and
+> `integrations/codex/SKILL.md` for current operating guidance.
+
 **Date:** April 2, 2026  
 **Status:** Approved  
 **Version:** 1.2
@@ -255,7 +262,7 @@ Copied from cortex-code/scripts with adaptations:
 - **execute_cortex.py**: Cortex CLI execution wrapper
   - Build enriched prompt with context
   - Apply security envelope (RO/RW/RESEARCH/DEPLOY/NONE)
-  - Execute: `cortex -p "..." --output-format stream-json --input-format stream-json`
+  - Execute: `cortex -p "..." --output-format stream-json`
   - Parse NDJSON event stream in real-time
   - Handle tool_use events and results
   - Stream output to terminal
@@ -462,7 +469,7 @@ Define which tools are blocked during Cortex execution:
 - **RO** (Read-Only): Blocks Edit, Write, destructive Bash commands
 - **RW** (Read-Write): Blocks destructive operations (rm -rf, sudo)
 - **RESEARCH**: Read access plus web tools, blocks write operations
-- **DEPLOY**: Full access with no blocklist (use cautiously)
+- **DEPLOY**: Deployment operations; destructive shell commands remain blocked in the current implementation
 - **NONE**: Custom blocklist via --disallowed-tools parameter
 
 Envelopes enforced via `--disallowed-tools` flag to Cortex CLI.
@@ -785,7 +792,7 @@ After invalidation, fresh discovery triggered automatically.
   
   No response received within 60 seconds. Query cancelled.
   
-  To auto-approve, set approval_mode: "auto" in config.
+  Keep `approval_mode: "prompt"` for interactive safety, or explicitly approve the operation when prompted.
   ```
 - **Exit code**: 6
 

@@ -24,6 +24,11 @@ if ! command -v cortexcode-tool &>/dev/null; then
     fi
 else
     echo "✓ cortexcode-tool already installed: $(which cortexcode-tool)"
+    if ! cortexcode-tool --version &>/dev/null; then
+        echo "Existing cortexcode-tool failed verification. Reinstalling..."
+        bash "$REPO_ROOT/integrations/cli-tool/setup.sh"
+        echo ""
+    fi
 fi
 
 # ── Step 2: Auto-detect active Cortex connection ───────────────────────────
@@ -61,8 +66,9 @@ echo "  Config     : $INSTALL_LIB_DIR/config.yaml  (auto-detected, no --config f
 echo "  Connection : $ACTIVE_CONNECTION"
 echo ""
 echo "Usage from Codex:"
-echo "  cortexcode-tool \"your question\" --envelope RO"
+echo "  cortexcode-tool --yes \"your question\" --envelope RO"
+echo "  (Use --yes only after Codex chat approval.)"
 echo ""
 echo "Verify:"
 echo "  cortexcode-tool --version"
-echo "  cortexcode-tool \"How many databases do I have in Snowflake?\" --envelope RO"
+echo "  cortexcode-tool --yes \"How many databases do I have in Snowflake?\" --envelope RO"

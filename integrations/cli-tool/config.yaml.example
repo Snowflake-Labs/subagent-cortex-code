@@ -15,7 +15,7 @@ security:
   # "auto" - Auto-approve all operations (best for non-interactive CLI usage)
   # "prompt" - Show approval prompt before each execution (interactive mode)
   # "envelope_only" - Rely on envelope blocklist only (fastest)
-  approval_mode: "auto"
+  approval_mode: "prompt"
 
   # Audit log path (required for auto/envelope_only modes)
   audit_log_path: "~/.config/cortexcode-tool/audit.log"

@@ -25,6 +25,7 @@ config.yaml
 !integrations/codex/config.yaml
 
 # Generated/temporary directories
+.worktrees/
 semantic_view_*/
 DB_STOCK_*/
 

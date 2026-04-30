@@ -32,6 +32,20 @@ def test_run_command_success():
 
 
 @pytest.mark.unit
+def test_run_command_uses_shell_false():
+    """Discovery should not use shell=True for fixed cortex commands."""
+    with patch('shared.scripts.discover_cortex.subprocess.run') as mock_run:
+        mock_run.return_value.stdout = "output"
+        mock_run.return_value.stderr = ""
+        mock_run.return_value.returncode = 0
+
+        run_command(["cortex", "skill", "list"])
+
+        assert mock_run.call_args.kwargs["shell"] is False
+        assert mock_run.call_args.args[0] == ["cortex", "skill", "list"]
+
+
+@pytest.mark.unit
 def test_run_command_failure():
     """Test command execution failure."""
     with patch('shared.scripts.discover_cortex.subprocess.run') as mock_run:
@@ -79,6 +93,7 @@ def test_discover_cortex_skills_new_format(mock_cortex_output_new_format):
             assert isinstance(skills, dict)
             # Should have called read_skill_metadata for each skill
             assert mock_read.call_count >= 3  # At least 3 skills in new format
+            assert set(skills) >= {"snowflake-query", "data-quality", "cortex-search"}
 
 
 @pytest.mark.unit

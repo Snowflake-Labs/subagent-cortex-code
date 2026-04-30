@@ -91,11 +91,11 @@ cortex connections list
 
 #### Symptom
 ```
-Permission denied: Tool denied: headless mode requires --allowed-tools
+Permission denied: Tool denied by envelope or policy
 ```
 
 #### Explanation
-This is EXPECTED behavior. Organization policy blocks `--dangerously-allow-all-tool-calls`, so we use `--allowed-tools` explicitly.
+This is expected when the selected envelope blocks a requested tool or command pattern. Current wrappers enforce least-privilege envelopes with `--disallowed-tools`; they do not rely on `--allowed-tools`.
 
 #### Diagnosis
 ```bash

@@ -18,11 +18,11 @@ from security.config_manager import ConfigManager
 
 
 def run_command(cmd):
-    """Run shell command and return output."""
+    """Run a command and return output."""
     try:
         result = subprocess.run(
             cmd,
-            shell=True,
+            shell=False,
             capture_output=True,
             text=True,
             timeout=10
@@ -37,7 +37,7 @@ def discover_cortex_skills():
     print("Discovering Cortex Code capabilities...", file=sys.stderr)
 
     # Run cortex skill list
-    stdout, stderr, code = run_command("cortex skill list")
+    stdout, stderr, code = run_command(["cortex", "skill", "list"])
 
     if code != 0:
         print(f"Error running cortex skill list: {stderr}", file=sys.stderr)
@@ -70,10 +70,10 @@ def discover_cortex_skills():
                 continue
             skill_name = parts[0].strip(':').strip()
 
-            # Read the skill's SKILL.md to get description and triggers
-            skill_info = read_skill_metadata(skill_name)
-            if skill_info:
-                skills[skill_name] = skill_info
+        # Read the skill's SKILL.md to get description and triggers
+        skill_info = read_skill_metadata(skill_name)
+        if skill_info:
+            skills[skill_name] = skill_info
 
     return skills
 

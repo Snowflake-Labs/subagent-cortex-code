@@ -9,6 +9,10 @@ import json
 import subprocess
 import sys
 import argparse
+import threading
+import queue
+import time
+from pathlib import Path
 from typing import List, Dict, Optional
 
 
@@ -17,6 +21,14 @@ KNOWN_TOOLS = [
     "Read", "Write", "Edit", "Bash", "Grep", "Glob",
     "snowflake_sql_execute", "data_diff", "snowflake_query"
 ]
+
+DESTRUCTIVE_SHELL_TOOLS = [
+    "Bash(rm *)", "Bash(rm -rf *)", "Bash(rm -r *)",
+    "Bash(sudo *)", "Bash(chmod 777 *)",
+    "Bash(git push *)", "Bash(git reset --hard *)"
+]
+
+READ_ONLY_TOOLS = ["Edit", "Write", "Bash"] + DESTRUCTIVE_SHELL_TOOLS
 
 
 def invert_tools_to_disallowed(allowed_tools: List[str]) -> List[str]:
@@ -43,13 +55,13 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
                              disallowed_tools: Optional[List[str]] = None,
                              envelope: str = "RW",
                              approval_mode: str = "auto",
-                             allowed_tools: Optional[List[str]] = None) -> Dict:
+                             allowed_tools: Optional[List[str]] = None,
+                             timeout_seconds: int = 300) -> Dict:
     """
     Execute Cortex with streaming JSON output in programmatic mode.
 
     Uses --output-format stream-json for streaming results.
-    Tools are controlled via --allowed-tools allowlist (envelope mode) or
-    --disallowed-tools blocklist (prompt mode) for safety.
+    Tools are controlled via --disallowed-tools blocklists for safety.
 
     Args:
         prompt: The enriched prompt to send to Cortex
@@ -62,16 +74,14 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
     Returns:
         Dictionary with execution results
     """
-    # Build command with programmatic auto-approval mode.
-    # --input-format stream-json enables headless auto-approval of all tool calls
-    # (including snowflake_sql_execute and MCP tools) without --bypass or
-    # --dangerously-allow-all-tool-calls which may be blocked by org policy.
-    # Envelope security is enforced via --disallowed-tools blocklist.
+    # Build command in print mode. The prompt is delivered with -p; do not add
+    # --input-format stream-json here. Cortex treats that flag as JSON stdin
+    # input mode, so combining it with -p and closed stdin can emit only the
+    # initial session event and exit before the prompt is processed.
     cmd = [
         "cortex",
         "-p", prompt,
-        "--output-format", "stream-json",
-        "--input-format", "stream-json"
+        "--output-format", "stream-json"
     ]
 
     # Add connection if specified
@@ -79,9 +89,8 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
         cmd.extend(["-c", connection])
 
     # Step 1: Handle approval mode — build disallowed tools list for envelope security.
-    # Note: --input-format stream-json auto-approves tools; --disallowed-tools
-    # enforces the security boundary. Do NOT use --allowed-tools: it creates an
-    # "must match pattern" check that blocks Snowflake MCP tools.
+    # Do NOT use --allowed-tools: it creates a "must match pattern" check that
+    # blocks Snowflake MCP tools.
     final_disallowed_tools = disallowed_tools or []
 
     if approval_mode == "prompt":
@@ -98,26 +107,18 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
 
     elif approval_mode in ["envelope_only", "auto"]:
         # Envelope-only or auto mode: apply envelope-based security via blocklist.
-        # --input-format stream-json (set above) auto-approves all non-blocked tools.
         envelope_tools = []
         if envelope == "RO":
             # Read-only: block all write operations
-            envelope_tools = [
-                "Edit", "Write",
-                "Bash(rm *)", "Bash(rm -rf *)", "Bash(rm -r *)",
-                "Bash(sudo *)", "Bash(chmod 777 *)",
-                "Bash(git push *)", "Bash(git reset --hard *)"
-            ]
-        elif envelope == "DEPLOY":
-            # Full access: no blocklist
-            envelope_tools = []
+            envelope_tools = READ_ONLY_TOOLS
+        elif envelope in ["RW", "DEPLOY"]:
+            # RW and DEPLOY may allow shell usage, but still block destructive
+            # shell patterns by default. Explicit custom disallowed_tools can
+            # add stricter policy on top.
+            envelope_tools = DESTRUCTIVE_SHELL_TOOLS
         elif envelope == "RESEARCH":
             # Research: read-only plus web access
-            envelope_tools = [
-                "Edit", "Write",
-                "Bash(rm *)", "Bash(rm -rf *)", "Bash(rm -r *)",
-                "Bash(sudo *)", "Bash(chmod 777 *)"
-            ]
+            envelope_tools = READ_ONLY_TOOLS
         # Merge envelope tools with final disallowed list
         if envelope_tools:
             final_disallowed_tools = list(set(final_disallowed_tools) | set(envelope_tools))
@@ -127,17 +128,34 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
         for tool in final_disallowed_tools:
             cmd.extend(["--disallowed-tools", tool])
 
-    debug_cmd = f"cortex -p \"...\" --output-format stream-json --input-format stream-json"
+    debug_cmd = f"cortex -p \"...\" --output-format stream-json"
     if connection:
         debug_cmd += f" -c {connection}"
     if final_disallowed_tools:
         debug_cmd += f" --disallowed-tools {' '.join(final_disallowed_tools[:3])}{'...' if len(final_disallowed_tools) > 3 else ''}"
     print(debug_cmd, file=sys.stderr)
 
+    process = None
+    stderr_lines = []
+
+    def _read_stderr(stderr):
+        if stderr is None:
+            return
+        for stderr_line in stderr:
+            stderr_lines.append(stderr_line)
+
+    def _kill_process():
+        if not process:
+            return
+        process.kill()
+        try:
+            process.wait(timeout=1)
+        except Exception:
+            pass
+
     try:
-        # Start process. stdin=DEVNULL is critical: --input-format stream-json
-        # puts Cortex in programmatic mode but it must not wait on stdin for
-        # approval responses — closing it lets auto-approval proceed immediately.
+        # Start process. stdin=DEVNULL prevents accidental reads from the parent
+        # terminal; prompt delivery is handled exclusively by -p print mode.
         process = subprocess.Popen(
             cmd,
             stdout=subprocess.PIPE,
@@ -147,6 +165,9 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
             bufsize=1
         )
 
+        stderr_thread = threading.Thread(target=_read_stderr, args=(process.stderr,), daemon=True)
+        stderr_thread.start()
+
         results = {
             "session_id": None,
             "events": [],
@@ -155,8 +176,43 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
             "error": None
         }
 
-        # Read streaming output
-        for line in process.stdout:
+        stdout_queue = queue.Queue()
+        stdout_errors = queue.Queue()
+
+        def _read_stdout(stdout):
+            if stdout is None:
+                stdout_queue.put(None)
+                return
+            try:
+                for stdout_line in stdout:
+                    stdout_queue.put(stdout_line)
+            except Exception as exc:
+                stdout_errors.put(exc)
+            finally:
+                stdout_queue.put(None)
+
+        stdout_thread = threading.Thread(target=_read_stdout, args=(process.stdout,), daemon=True)
+        stdout_thread.start()
+
+        timed_out = False
+        deadline = time.monotonic() + timeout_seconds
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                timed_out = True
+                break
+
+            try:
+                line = stdout_queue.get(timeout=remaining)
+            except queue.Empty:
+                timed_out = True
+                break
+
+            if line is None:
+                if not stdout_errors.empty():
+                    raise stdout_errors.get()
+                break
+
             if not line.strip():
                 continue
 
@@ -192,12 +248,13 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
                     for item in content:
                         if item.get("type") == "tool_result":
                             tool_content = item.get("content", "")
-                            if "Permission denied" in tool_content or "denied" in tool_content.lower():
+                            tool_content_text = json.dumps(tool_content) if isinstance(tool_content, list) else str(tool_content)
+                            if "Permission denied" in tool_content_text or "denied" in tool_content_text.lower():
                                 results["permission_requests"].append({
                                     "tool_use_id": item.get("tool_use_id"),
                                     "content": tool_content
                                 })
-                                print(f"[Cortex] Permission request detected: {tool_content}", file=sys.stderr)
+                                print(f"[Cortex] Permission request detected: {tool_content_text}", file=sys.stderr)
 
                 # Handle final result
                 elif event_type == "result":
@@ -208,19 +265,34 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
                 print(f"Warning: Failed to parse line: {line[:100]}... Error: {e}", file=sys.stderr)
                 continue
 
+        if timed_out:
+            raise subprocess.TimeoutExpired(cmd=cmd, timeout=timeout_seconds)
+
         # Wait for process to complete
-        process.wait()
+        process.wait(timeout=timeout_seconds)
+        stderr_thread.join(timeout=1)
 
         # Check for errors
         if process.returncode != 0:
-            stderr_output = process.stderr.read()
+            stderr_output = "".join(stderr_lines)
             results["error"] = stderr_output
             print(f"Error: Cortex exited with code {process.returncode}", file=sys.stderr)
             print(f"Stderr: {stderr_output}", file=sys.stderr)
 
         return results
 
+    except subprocess.TimeoutExpired:
+        _kill_process()
+        return {
+            "session_id": None,
+            "events": [],
+            "permission_requests": [],
+            "final_result": None,
+            "error": f"Cortex execution timed out after {timeout_seconds} seconds"
+        }
+
     except Exception as e:
+        _kill_process()
         return {
             "session_id": None,
             "events": [],
@@ -244,6 +316,9 @@ def main():
                        help="Approval mode (default: auto)")
     parser.add_argument("--allowed-tools", nargs="+",
                        help="Tools that are allowed (for prompt mode)")
+    parser.add_argument("--timeout", type=int, default=300,
+                       help="Maximum seconds to wait for Cortex execution (default: 300)")
+    parser.add_argument("--output-file", help="Write JSON results to this file instead of stdout")
     parser.add_argument("--stream", action="store_true", help="Stream output (always true)")
     args = parser.parse_args()
 
@@ -254,11 +329,18 @@ def main():
         disallowed_tools=args.disallowed_tools,
         envelope=args.envelope,
         approval_mode=args.approval_mode,
-        allowed_tools=args.allowed_tools
+        allowed_tools=args.allowed_tools,
+        timeout_seconds=args.timeout
     )
 
     # Output results as JSON
-    print(json.dumps(results, indent=2))
+    output = json.dumps(results, indent=2)
+    if args.output_file:
+        output_path = Path(args.output_file)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(output + "\n")
+    else:
+        print(output)
 
     # Exit with appropriate code
     if results.get("error"):
