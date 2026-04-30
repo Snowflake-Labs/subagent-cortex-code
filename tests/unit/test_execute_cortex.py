@@ -29,6 +29,12 @@ class RaisingStdout:
         raise RuntimeError("stream failed")
 
 
+class BlockingStdout:
+    def __iter__(self):
+        while True:
+            yield ""
+
+
 class TestToolInversion:
     """Test tool inversion logic (allowed -> disallowed)."""
 
@@ -346,6 +352,19 @@ class TestSubprocessLifecycle:
         mock_popen.return_value = mock_process
 
         result = execute_cortex_streaming(prompt="Test prompt", timeout_seconds=1)
+
+        assert "timed out" in result["error"]
+        mock_process.kill.assert_called_once()
+
+    @patch('execute_cortex.subprocess.Popen')
+    def test_timeout_kills_process_when_stdout_blocks(self, mock_popen):
+        mock_process = MagicMock()
+        mock_process.stdout = BlockingStdout()
+        mock_process.stderr = []
+        mock_process.wait.return_value = None
+        mock_popen.return_value = mock_process
+
+        result = execute_cortex_streaming(prompt="Test prompt", timeout_seconds=0.01)
 
         assert "timed out" in result["error"]
         mock_process.kill.assert_called_once()

@@ -10,6 +10,8 @@ import subprocess
 import sys
 import argparse
 import threading
+import queue
+import time
 from pathlib import Path
 from typing import List, Dict, Optional
 
@@ -179,8 +181,43 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
             "error": None
         }
 
-        # Read streaming output
-        for line in process.stdout:
+        stdout_queue = queue.Queue()
+        stdout_errors = queue.Queue()
+
+        def _read_stdout(stdout):
+            if stdout is None:
+                stdout_queue.put(None)
+                return
+            try:
+                for stdout_line in stdout:
+                    stdout_queue.put(stdout_line)
+            except Exception as exc:
+                stdout_errors.put(exc)
+            finally:
+                stdout_queue.put(None)
+
+        stdout_thread = threading.Thread(target=_read_stdout, args=(process.stdout,), daemon=True)
+        stdout_thread.start()
+
+        timed_out = False
+        deadline = time.monotonic() + timeout_seconds
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                timed_out = True
+                break
+
+            try:
+                line = stdout_queue.get(timeout=remaining)
+            except queue.Empty:
+                timed_out = True
+                break
+
+            if line is None:
+                if not stdout_errors.empty():
+                    raise stdout_errors.get()
+                break
+
             if not line.strip():
                 continue
 
@@ -232,6 +269,9 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
             except json.JSONDecodeError as e:
                 print(f"Warning: Failed to parse line: {line[:100]}... Error: {e}", file=sys.stderr)
                 continue
+
+        if timed_out:
+            raise subprocess.TimeoutExpired(cmd=cmd, timeout=timeout_seconds)
 
         # Wait for process to complete
         process.wait(timeout=timeout_seconds)

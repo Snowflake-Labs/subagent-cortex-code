@@ -462,3 +462,65 @@ security:
 
         assert result["status"] == "executed"
         # TODO: Add cache verification when caching is implemented
+
+
+class TestSecurityWrapperExecutionHandoff:
+    """Regression tests for actual execution handoff and audit resilience."""
+
+    def test_sanitized_prompt_reaches_execute_cortex(self, temp_dir):
+        """PII-sanitized prompt should be handed to execute_cortex_streaming."""
+        config_path = temp_dir / "config.yaml"
+        config_path.write_text(f"""
+security:
+  approval_mode: auto
+  audit_log_path: {temp_dir}/audit.log
+  cache_dir: {temp_dir}/.cache
+  sanitize_conversation_history: true
+""")
+
+        with patch("scripts.security_wrapper.execute_cortex_streaming") as mock_execute:
+            mock_execute.return_value = {
+                "session_id": "session-1",
+                "events": [],
+                "permission_requests": [],
+                "final_result": "ok",
+                "error": None,
+            }
+
+            result = execute_with_security(
+                prompt="Query Snowflake for john@example.com",
+                config_path=str(config_path),
+            )
+
+        assert result["status"] == "executed"
+        executed_prompt = mock_execute.call_args.kwargs["prompt"]
+        assert "john@example.com" not in executed_prompt
+        assert "<EMAIL>" in executed_prompt
+
+    def test_audit_write_failure_does_not_crash_execution(self, temp_dir):
+        """Audit log write failures should be reported, not crash execution."""
+        config_path = temp_dir / "config.yaml"
+        config_path.write_text(f"""
+security:
+  approval_mode: auto
+  audit_log_path: {temp_dir}/audit.log
+  cache_dir: {temp_dir}/.cache
+""")
+
+        with patch("scripts.security_wrapper.execute_cortex_streaming") as mock_execute:
+            mock_execute.return_value = {
+                "session_id": "session-1",
+                "events": [],
+                "permission_requests": [],
+                "final_result": "ok",
+                "error": None,
+            }
+            with patch("scripts.security_wrapper.AuditLogger.log_execution", side_effect=OSError("disk full")):
+                result = execute_with_security(
+                    prompt="Query Snowflake databases",
+                    config_path=str(config_path),
+                )
+
+        assert result["status"] == "executed"
+        assert result["audit_id"] is None
+        assert "disk full" in result["audit_error"]

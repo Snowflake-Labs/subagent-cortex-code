@@ -292,7 +292,7 @@ The skill uses a security wrapper that provides:
 When using auto or envelope_only modes:
 - All tool calls are automatically approved without interactive prompts
 - Works for built-in tools (Read, Write, Edit, Bash, Grep, Glob) and non-builtin tools (snowflake_sql_execute, data_diff, MCP tools)
-- Bypasses organization policies that block `--bypass` or `--dangerously-allow-all-tool-calls`
+- Avoids using `--bypass` or `--dangerously-allow-all-tool-calls`; organization policies should still govern Cortex execution
 - Security is controlled via `--disallowed-tools` blocklist instead of interactive approval
 
 ### Stateless Execution

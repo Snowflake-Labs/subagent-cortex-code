@@ -6,7 +6,7 @@ Codex does not use a skill directory for this integration. Instead, `cortexcode-
 
 ## Why CLI instead of skill?
 
-Codex's sandbox blocks the interactive approval prompts that `cortex -p` requires without `--bypass`. The `cortexcode-tool` wraps `cortex` with `--bypass` and `approval_mode: auto`, making it safe and reliable in non-TTY environments. Codex calls it as a single foreground command and automatically waits for it to complete.
+Codex uses `cortexcode-tool` as a standalone foreground command. The Codex-specific config uses `approval_mode: auto` with the restrictive `RO` envelope by default so non-interactive Snowflake reads can complete without a TTY prompt.
 
 ## Prerequisites
 
@@ -121,7 +121,7 @@ cat ~/.local/lib/cortexcode-tool/config.yaml | grep approval_mode
 
 # Verify Cortex connection works
 cortex connections list
-cortex -p "SHOW DATABASES;" --bypass --output-format stream-json
+cortex -p "SHOW DATABASES;" --output-format stream-json --input-format stream-json
 ```
 
 **Wrong connection used:**

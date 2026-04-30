@@ -126,6 +126,18 @@ class TestCacheManagerIntegration:
 class TestDiscoverCortexScript:
     """Test discover_cortex.py main functionality."""
 
+    @patch('scripts.discover_cortex.subprocess.run')
+    def test_run_command_uses_shell_false(self, mock_run):
+        """Discovery should not use shell=True for fixed cortex commands."""
+        mock_run.return_value.stdout = "output"
+        mock_run.return_value.stderr = ""
+        mock_run.return_value.returncode = 0
+
+        discover_cortex.run_command(["cortex", "skill", "list"])
+
+        assert mock_run.call_args.kwargs["shell"] is False
+        assert mock_run.call_args.args[0] == ["cortex", "skill", "list"]
+
     @patch('scripts.discover_cortex.run_command')
     @patch('scripts.discover_cortex.read_skill_metadata')
     def test_discover_cortex_skills(self, mock_read_metadata, mock_run_command):

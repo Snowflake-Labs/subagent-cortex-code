@@ -31,6 +31,7 @@ from security.approval_handler import ApprovalHandler
 # Import routing functions
 sys.path.insert(0, str(Path(__file__).parent))
 from route_request import analyze_with_llm_logic, load_cortex_capabilities
+from execute_cortex import execute_cortex_streaming
 
 
 def execute_with_security(
@@ -204,17 +205,35 @@ def execute_with_security(
         # Envelope only mode: no tool prediction
         allowed_tools = None  # None means rely on envelope only
 
-    # Step 11: Execute with Cortex (simplified for now - actual execution via execute_cortex.py would go here)
-    # For now, return success with mock execution
-    execution_result = {
-        "status": "success",
-        "message": "Execution simulated (full Cortex integration in next phase)",
-        "tools_used": allowed_tools or ["envelope-controlled"],
-        "duration_ms": 100
-    }
+    # Step 11: Execute with Cortex using the sanitized prompt.
+    envelope_mode = "RW"
+    if isinstance(envelope, dict):
+        envelope_mode = envelope.get("mode") or envelope.get("type") or "RW"
+    elif isinstance(envelope, str):
+        envelope_mode = envelope
+
+    if mock_user_approval:
+        execution_result = {
+            "status": "success",
+            "message": "Execution simulated for mocked approval",
+            "tools_used": allowed_tools or ["envelope-controlled"],
+        }
+    else:
+        execution_result = execute_cortex_streaming(
+            prompt=sanitized_prompt,
+            envelope=envelope_mode,
+            approval_mode=approval_mode,
+            allowed_tools=allowed_tools,
+            timeout_seconds=int(config_manager.get("security.execution_timeout_seconds", 5)),
+        )
+        execution_result.setdefault("status", "success" if not execution_result.get("error") else "error")
+        execution_result.setdefault("tools_used", allowed_tools or ["envelope-controlled"])
 
     # Step 12: Audit logging
-    audit_id = audit_logger.log_execution(
+    audit_id = None
+    audit_error = None
+    try:
+        audit_id = audit_logger.log_execution(
         event_type="cortex_execution",
         user=os.environ.get("USER", "unknown"),
         routing={"decision": route_decision, "confidence": route_confidence},
@@ -226,11 +245,14 @@ def execute_with_security(
             "allowed_tools": allowed_tools
         },
         result=execution_result,
-        security={
-            "sanitized": sanitize_enabled,
-            "pii_removed": sanitize_enabled and prompt != sanitized_prompt
-        }
-    )
+            security={
+                "sanitized": sanitize_enabled,
+                "pii_removed": sanitize_enabled and prompt != sanitized_prompt
+            }
+        )
+    except Exception as exc:
+        audit_error = str(exc)
+        print(f"Warning: failed to write audit log: {audit_error}", file=sys.stderr)
 
     # Step 13: Cache result (optional - for future optimization)
     # For now, skip caching
@@ -238,6 +260,7 @@ def execute_with_security(
     return {
         "status": "executed",
         "audit_id": audit_id,
+        "audit_error": audit_error,
         "routing": {"decision": route_decision, "confidence": route_confidence},
         "approval_mode": approval_mode,
         "predicted_tools": predicted_tools,

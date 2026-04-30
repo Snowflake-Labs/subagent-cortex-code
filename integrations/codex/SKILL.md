@@ -26,7 +26,7 @@ Codex automatically waits for long-running commands ("Waited for background term
 The command takes 30-90 seconds.
 
 ```bash
-cortexcode-tool "USER_PROMPT_HERE" --envelope RO --config ~/.agents/skills/cortex-code/config.yaml
+cortexcode-tool "USER_PROMPT_HERE" --envelope RO --config ~/.local/lib/cortexcode-tool/config.yaml
 ```
 
 Choose envelope based on operation:
@@ -64,12 +64,12 @@ For non-Snowflake requests, handle directly using Codex tools:
 
 The cortexcode-tool uses built-in security flow:
 - Auto-approval mode (approval_mode: "auto")
-- Audit logging to /tmp/cortexcode-tool-codex-audit.log
+- Audit logging to ~/.cache/cortexcode-tool/audit.log
 - Envelope-based tool restrictions
 - Prompt sanitization
 - Credential path blocking
 
-Config file location: `~/.agents/skills/cortex-code/config.yaml` (written by install.sh, persists across reboots)
+Config file location: `~/.local/lib/cortexcode-tool/config.yaml` (written by install.sh, persists across reboots)
 
 ## Notes for Codex
 
@@ -82,9 +82,9 @@ Config file location: `~/.agents/skills/cortex-code/config.yaml` (written by ins
 ## Troubleshooting
 
 ### Error: Permission denied on audit log or cache
-**Solution**: Use the provided config (audit/cache go to /tmp which is always writable):
+**Solution**: Use the provided config (audit/cache go to `~/.cache/cortexcode-tool`):
 ```bash
---config ~/.agents/skills/cortex-code/config.yaml
+--config ~/.local/lib/cortexcode-tool/config.yaml
 ```
 
 ### Error: Cortexcode-tool not found
@@ -98,22 +98,22 @@ bash integrations/codex/install.sh
 If the command times out, retry once — Snowflake connection may have been cold.
 
 ### cortex -p hangs with no output
-**Cause**: `cortex -p` without `--bypass` waits for interactive approval on stdin, which is null in non-TTY terminals.
-**Solution**: Always use `cortexcode-tool` (which adds `--bypass` automatically), never `cortex -p` directly.
+**Cause**: Direct `cortex -p` invocation may wait for interactive approval in non-TTY terminals.
+**Solution**: Use `cortexcode-tool`, which invokes Cortex in stream JSON mode with the configured envelope.
 
 ## Examples
 
 **Snowflake database count:**
 ```bash
-cortexcode-tool "How many databases do I have in Snowflake?" --envelope RO --config ~/.agents/skills/cortex-code/config.yaml
+cortexcode-tool "How many databases do I have in Snowflake?" --envelope RO --config ~/.local/lib/cortexcode-tool/config.yaml
 ```
 
 **Query specific database:**
 ```bash
-cortexcode-tool "What tables are in DB_STOCK database?" --envelope RO --config ~/.agents/skills/cortex-code/config.yaml
+cortexcode-tool "What tables are in DB_STOCK database?" --envelope RO --config ~/.local/lib/cortexcode-tool/config.yaml
 ```
 
 **Data modification:**
 ```bash
-cortexcode-tool "Create a backup table of SALES_DATA" --envelope RW --config ~/.agents/skills/cortex-code/config.yaml
+cortexcode-tool "Create a backup table of SALES_DATA" --envelope RW --config ~/.local/lib/cortexcode-tool/config.yaml
 ```

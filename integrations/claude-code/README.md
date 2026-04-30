@@ -38,7 +38,7 @@ cp ~/.claude/skills/cortex-code/config.yaml.example \
 Edit `~/.claude/skills/cortex-code/config.yaml`:
 ```yaml
 security:
-  approval_mode: "auto"   # or "prompt" (default) or "envelope_only"
+  approval_mode: "prompt"  # or "auto" or "envelope_only"
 
 cortex:
   connection_name: "your-connection-name"
@@ -55,7 +55,7 @@ Use `auto` for fully automated workflows.
 ├── config.yaml.example      # Configuration template
 ├── scripts/
 │   ├── route_request.py     # LLM-based routing logic
-│   ├── execute_cortex.py    # Headless Cortex execution (--bypass)
+│   ├── execute_cortex.py    # Stream JSON Cortex execution
 │   ├── discover_cortex.py   # Cortex capability discovery
 │   ├── read_cortex_sessions.py
 │   ├── predict_tools.py
@@ -75,7 +75,7 @@ When you ask a Snowflake-related question:
 
 1. Claude Code loads the skill and calls `scripts/route_request.py` to classify the request
 2. If routed to Cortex: Claude Code enriches the prompt with session context, then calls `scripts/execute_cortex.py`
-3. `execute_cortex.py` runs `cortex -p "..." --output-format stream-json --bypass` headlessly
+3. `execute_cortex.py` runs `cortex -p "..." --output-format stream-json --input-format stream-json`
 4. Results stream back and Claude Code presents them to you
 
 **Routing Principle**: ONLY Snowflake operations → Cortex. Everything else → Claude Code handles directly.
