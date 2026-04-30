@@ -10,7 +10,7 @@ import yaml
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from cortexcode_tool.security.cache_manager import CacheManager
-from cortexcode_tool.main import parse_args
+from cortexcode_tool.main import parse_args, should_request_codex_escalation
 
 
 def test_cli_example_config_defaults_to_prompt():
@@ -57,3 +57,16 @@ def test_cli_cache_directory_chmod_failure_is_nonfatal(tmp_path):
             cache = CacheManager(cache_dir)
 
     assert cache.cache_dir == cache_dir
+
+
+def test_codex_network_disabled_sandbox_requests_host_escalation(monkeypatch):
+    monkeypatch.setenv("CODEX_SANDBOX_NETWORK_DISABLED", "1")
+
+    assert should_request_codex_escalation() is True
+
+
+def test_codex_sandbox_guard_can_be_disabled_after_escalation(monkeypatch):
+    monkeypatch.setenv("CODEX_SANDBOX_NETWORK_DISABLED", "1")
+    monkeypatch.setenv("CORTEXCODE_ALLOW_CODEX_SANDBOX", "1")
+
+    assert should_request_codex_escalation() is False
