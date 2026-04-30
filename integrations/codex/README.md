@@ -32,10 +32,10 @@ The script:
 
 ```bash
 cortexcode-tool --version
-cortexcode-tool --yes "How many databases do I have in Snowflake?" --envelope RO
+cortexcode-tool --envelope RO "How many databases do I have in Snowflake?"
 ```
 
-Expected: after you have approved the planned execution in Codex chat, the tool runs for 30–90 seconds, then prints formatted results.
+Expected: the direct terminal query may ask for approval, then runs for 30–90 seconds and prints formatted results. Inside Codex chat, approve the planned execution first, then Codex should retry with `--yes`.
 
 ## Usage from Codex
 
@@ -49,8 +49,8 @@ cortexcode-tool --help
 Once discovered, Codex will invoke `cortexcode-tool` for Snowflake questions automatically. You can be explicit or implicit — both work:
 
 ```bash
-# Explicit
-cortexcode-tool --yes "How many databases do I have in Snowflake?"
+# Explicit after Codex chat approval
+cortexcode-tool --yes --envelope RO "How many databases do I have in Snowflake?"
 
 # Implicit — Codex detects the Snowflake intent and calls cortexcode-tool on its own
 How many databases do I have in Snowflake?
@@ -84,7 +84,7 @@ logging:
   file: "~/.cache/cortexcode-tool/cortexcode-tool.log"
 ```
 
-Audit/log paths use `~/.cache/` so Codex's sandbox triggers a bypass prompt, allowing `cortexcode-tool` to reach Snowflake outside the sandbox. Do **not** change them to `/tmp/` — `/tmp/` is accessible inside the sandbox and prevents the bypass.
+Audit/log paths use `~/.cache/cortexcode-tool/` so logs stay outside the repository. If Codex reports that network access is required, approve the planned Cortex Code execution in chat and retry the same foreground command with `--yes`.
 
 ## Update connection
 
@@ -100,8 +100,7 @@ vi ~/.local/lib/cortexcode-tool/config.yaml
 ## Uninstall
 
 ```bash
-bash integrations/cli-tool/uninstall.sh
-rm -f ~/.local/lib/cortexcode-tool/config.yaml
+bash integrations/codex/uninstall.sh
 ```
 
 ## Troubleshooting
@@ -114,7 +113,7 @@ which cortexcode-tool
 export PATH="$HOME/.local/bin:$PATH"
 ```
 
-**Command hangs in Codex:**
+**Command waits or needs network approval in Codex:**
 ```bash
 # Verify approval_mode is prompt by default
 cat ~/.local/lib/cortexcode-tool/config.yaml | grep approval_mode
@@ -133,5 +132,5 @@ cortex connections list
 vi ~/.local/lib/cortexcode-tool/config.yaml  # update connection_name
 ```
 
-**Permission errors on audit log:**
-The config uses `~/.cache/` paths for logs. Codex's sandbox blocks `~/.cache/` operations, which triggers a bypass prompt — the tool then runs outside the sandbox with full network access to Snowflake. Do **not** change these paths to `/tmp/` or other sandbox-accessible locations, as that would break the bypass mechanism.
+**Network sandbox approval required:**
+Approve the planned Cortex Code execution in Codex chat, then retry the same foreground command with `--yes`. Do not background the command.

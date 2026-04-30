@@ -10,13 +10,21 @@ Enables Cursor to route Snowflake queries to Cortex Code CLI automatically.
 
 ## Install
 
-**Step 1 — Install the skill via npx:**
+**Step 1 — Install the skill:**
+
+Recommended from a local clone:
+
+```bash
+bash integrations/cursor/install.sh
+```
+
+Or install the packaged skill via `npx`:
 
 ```bash
 npx skills add snowflake-labs/subagent-cortex-code --copy --global
 ```
 
-This installs the skill to `~/.cursor/skills/cortex-code/`.
+Both paths install the skill to `~/.cursor/skills/cortex-code/`.
 
 **Step 2 — Activate the Cursor routing rule:**
 
@@ -24,6 +32,8 @@ This installs the skill to `~/.cursor/skills/cortex-code/`.
 mkdir -p ~/.cursor/rules
 cp ~/.cursor/skills/cortex-code/cortex-snowflake-routing.mdc ~/.cursor/rules/
 ```
+
+If you used `integrations/cursor/install.sh`, you can also copy the project-local rule template into a repository root as `.cursorrules`.
 
 **Step 3 — Restart Cursor.**
 

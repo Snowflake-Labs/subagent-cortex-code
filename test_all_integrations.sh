@@ -105,37 +105,24 @@ echo ""
 
 echo "3. Testing Codex Integration"
 echo "----------------------------"
-if [ -d ~/.codex/skills/cortex-code ]; then
-    echo -e "${GREEN}✓ Directory exists${NC}"
+if command -v cortexcode-tool &> /dev/null; then
+    echo -e "${GREEN}✓ cortexcode-tool exists${NC}"
 
-    # Check parameterization
-    if grep -q "claude\|cursor" ~/.codex/skills/cortex-code/scripts/route_request.py; then
-        echo -e "${RED}✗ Wrong parameterization - found wrong agent name${NC}"
-        ((FAILED++))
-    else
-        echo -e "${GREEN}✓ Parameterization correct${NC}"
-        ((PASSED++))
-    fi
+    cortexcode-tool --version &> /tmp/codex_tool_version.txt
+    test_result "cortexcode-tool --version runs"
 
-    # Check files
-    [ -f ~/.codex/skills/cortex-code/SKILL.md ]
-    test_result "SKILL.md exists"
+    [ -f ~/.local/lib/cortexcode-tool/config.yaml ]
+    test_result "Codex config exists"
 
-    [ -f ~/.codex/skills/cortex-code/setup_guidance.md ]
-    test_result "setup_guidance.md exists"
-
-    # Test routing
-    cd ~/.codex/skills/cortex-code/scripts
-    python3 route_request.py --prompt "Query customers" > /tmp/codex_test.json 2>&1
-    if grep -q "cortex" /tmp/codex_test.json; then
-        echo -e "${GREEN}✓ Routing works${NC}"
+    if grep -q 'approval_mode: "prompt"' ~/.local/lib/cortexcode-tool/config.yaml; then
+        echo -e "${GREEN}✓ Codex approval mode defaults to prompt${NC}"
         ((PASSED++))
     else
-        echo -e "${RED}✗ Routing failed${NC}"
+        echo -e "${RED}✗ Codex approval mode is not prompt${NC}"
         ((FAILED++))
     fi
 else
-    echo -e "${RED}✗ Codex not installed${NC}"
+    echo -e "${RED}✗ cortexcode-tool not installed for Codex${NC}"
     ((FAILED++))
 fi
 echo ""

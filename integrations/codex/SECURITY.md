@@ -69,7 +69,7 @@ Blocks routing when prompts contain paths from allowlist:
 ### 4. Secure Caching
 
 Replaces insecure `/tmp` usage with secure cache:
-- **Location**: `~/.cache/cortex-skill/` (user-only permissions)
+- **Location**: `~/.cache/cortexcode-tool/` (user-only permissions)
 - **Integrity**: SHA256 fingerprint validation
 - **TTL**: 24-hour expiration for capabilities cache
 - **Permissions**: 0600 (owner read/write only)
@@ -139,7 +139,7 @@ Administrators can enforce security policies:
 
 2. **User Configuration**:
    ```
-   ~/.codex/skills/cortex-code/config.yaml
+   ~/.local/lib/cortexcode-tool/config.yaml
    ```
 
 3. **Default Configuration** (built-in fallback)
@@ -147,7 +147,7 @@ Administrators can enforce security policies:
 ### Example Configuration
 
 ```yaml
-# ~/.codex/skills/cortex-code/config.yaml
+# ~/.local/lib/cortexcode-tool/config.yaml
 
 security:
   # Approval mode (prompt, auto, envelope_only)
@@ -157,7 +157,7 @@ security:
   tool_prediction_confidence_threshold: 0.7
   
   # Audit logging
-  audit_log_path: "~/.codex/skills/cortex-code/audit.log"
+  audit_log_path: "~/.cache/cortexcode-tool/audit.log"
   audit_log_rotation: "10MB"
   audit_log_retention: 30  # days
   
@@ -165,7 +165,7 @@ security:
   sanitize_conversation_history: true
   
   # Secure caching
-  cache_dir: "~/.cache/cortex-skill"
+  cache_dir: "~/.cache/cortexcode-tool"
   cache_ttl: 86400  # 24 hours
   
   # Credential file allowlist (block routing if detected)
@@ -429,7 +429,7 @@ cat audit.log | jq 'select(.result.status != "success")'
 
 1. **Protect config files**: `chmod 600 config.yaml`
 2. **Protect audit logs**: `chmod 600 audit.log`
-3. **Protect cache directory**: `chmod 700 ~/.cache/cortex-skill/`
+3. **Protect cache directory**: `chmod 700 ~/.cache/cortexcode-tool/`
 4. **Review org policy** before deployment
 5. **Version control** organization policy (with appropriate access controls)
 

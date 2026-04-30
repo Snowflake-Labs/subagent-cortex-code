@@ -28,6 +28,10 @@ fi
 # Copy Cursor specific files
 echo "Copying Cursor specific files..."
 cp "$REPO_ROOT/integrations/cursor/SKILL.md" "$TARGET/"
+cp "$REPO_ROOT/integrations/cursor/.cursorrules.template" "$TARGET/"
+if [ -f "$REPO_ROOT/skills/cortex-code/cortex-snowflake-routing.mdc" ]; then
+    cp "$REPO_ROOT/skills/cortex-code/cortex-snowflake-routing.mdc" "$TARGET/"
+fi
 
 # Make scripts executable
 chmod +x "$TARGET/scripts/"*.py
@@ -39,5 +43,7 @@ echo "  Audit log: ~/.cursor/skills/cortex-code/audit.log"
 echo ""
 echo "(Optional) Copy .cursorrules.template to your project root for automatic routing:"
 echo "  cp $REPO_ROOT/integrations/cursor/.cursorrules.template /path/to/your/project/.cursorrules"
+echo "Or copy the global Cursor rule:"
+echo "  mkdir -p ~/.cursor/rules && cp $TARGET/cortex-snowflake-routing.mdc ~/.cursor/rules/"
 echo ""
 echo "Test with: /cortex-code How many databases do I have?"

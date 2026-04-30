@@ -144,7 +144,7 @@ security:
   #   "RO"       - Read-only operations (queries, reads)
   #   "RW"       - Read-write operations (queries, writes, creates)
   #   "RESEARCH" - Exploratory work with web access
-  #   "DEPLOY"   - Full access including destructive operations
+  #   "DEPLOY"   - Deployment operations; destructive shell commands remain blocked
   #
   # SECURITY: Limit envelopes to your operational needs.
   # ENTERPRISE: Consider allowing only RO/RW, require approval for DEPLOY.

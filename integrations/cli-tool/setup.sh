@@ -113,9 +113,8 @@ cat > "$INSTALL_DIR/config.yaml" << EOF
 security:
   approval_mode: "prompt"
   audit_log_path: "~/.cache/cortexcode-tool/audit.log"
-  sanitize_prompts: true
-  block_credential_paths: true
-  credential_path_patterns:
+  sanitize_conversation_history: true
+  credential_file_allowlist:
     - "~/.ssh/**"
     - "~/.aws/**"
     - "~/.snowflake/**"
@@ -124,7 +123,6 @@ security:
     - "**/credentials.json"
     - "**/credentials.yaml"
   cache_dir: "~/.cache/cortexcode-tool"
-  cache_ttl: 3600
 
 cortex:
   connection_name: "$ACTIVE_CONNECTION"

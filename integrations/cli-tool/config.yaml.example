@@ -6,15 +6,17 @@
 #
 # SECURITY: Ensure config.yaml has permissions 600 (user read/write only)
 #
-# CURSOR USERS: Use the Claude Code skill instead (~/.claude/skills/cortex-code/)
-# This config is for standalone CLI usage and other IDEs (VSCode, Windsurf)
+# CURSOR USERS: Use the Cursor skill integration instead (~/.cursor/skills/cortex-code/).
+# CODEX USERS: Use integrations/codex/install.sh, which writes a co-located
+# config to ~/.local/lib/cortexcode-tool/config.yaml.
+# This example is for standalone CLI usage and other IDEs (VSCode, Windsurf).
 
 # Security settings (v2.0.0)
 security:
-  # Approval mode: "auto" (recommended for CLI), "prompt", "envelope_only"
-  # "auto" - Auto-approve all operations (best for non-interactive CLI usage)
+  # Approval mode: "prompt" (recommended), "auto", "envelope_only"
   # "prompt" - Show approval prompt before each execution (interactive mode)
-  # "envelope_only" - Rely on envelope blocklist only (fastest)
+  # "auto" - Auto-approve operations after envelope restrictions (trusted automation only)
+  # "envelope_only" - Rely on envelope blocklist only (trusted automation only)
   approval_mode: "prompt"
 
   # Audit log path (required for auto/envelope_only modes)
@@ -24,8 +26,7 @@ security:
   sanitize_conversation_history: true
 
   # Credential file blocking
-  block_credential_paths: true
-  credential_path_patterns:
+  credential_file_allowlist:
     - "~/.ssh/**"
     - "~/.aws/**"
     - "~/.snowflake/**"
@@ -40,11 +41,10 @@ cortex:
   connection_name: "default"
 
   # Default security envelope: "RO", "RW", "RESEARCH", "DEPLOY", "NONE"
-  default_envelope: "RW"
+  default_envelope: "RO"
 
   # Cache settings
   cache_dir: "~/.cache/cortexcode-tool"
-  cache_ttl_seconds: 3600
 
   # Session history limit for context enrichment
   session_history_limit: 3

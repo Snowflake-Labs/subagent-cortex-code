@@ -52,7 +52,7 @@ This guide provides security best practices for deploying the cortex-code skill 
 ### Recommended Configuration
 
 ```yaml
-# ~/.codex/skills/cortex-code/config.yaml
+# ~/.local/lib/cortexcode-tool/config.yaml
 
 security:
   # Use prompt mode for interactive approval
@@ -65,12 +65,12 @@ security:
   sanitize_conversation_history: true
   
   # Audit logging (optional but recommended)
-  audit_log_path: "~/.codex/skills/cortex-code/audit.log"
+  audit_log_path: "~/.cache/cortexcode-tool/audit.log"
   audit_log_rotation: "10MB"
   audit_log_retention: 30
   
   # Secure caching
-  cache_dir: "~/.cache/cortex-skill"
+  cache_dir: "~/.cache/cortexcode-tool"
   cache_ttl: 86400
   
   # Credential protection
@@ -108,7 +108,7 @@ security:
 ```yaml
 security:
   approval_mode: "prompt"
-  audit_log_path: "~/.codex/skills/cortex-code/audit.log"
+  audit_log_path: "~/.cache/cortexcode-tool/audit.log"
 ```
 
 **Use envelope_only for trusted workflows:**
@@ -133,7 +133,7 @@ security:
   approval_mode: "prompt"
   
   # Mandatory audit logging
-  audit_log_path: "~/.codex/skills/cortex-code/audit.log"
+  audit_log_path: "~/.cache/cortexcode-tool/audit.log"
   audit_log_rotation: "10MB"
   audit_log_retention: 90  # 90 days for compliance
   
@@ -174,7 +174,7 @@ security:
    ```bash
    # Symlink audit logs to shared location
    ln -s ~/shared/audit-logs/$(whoami)-audit.log \
-     ~/.codex/skills/cortex-code/audit.log
+     ~/.cache/cortexcode-tool/audit.log
    ```
 
 3. **Team Training**
@@ -431,7 +431,7 @@ cat /var/log/cortex-skill/*.log | \
 ```yaml
 # Example configuration for cortex-code skill v2.0.0
 #
-# Copy to ~/.codex/skills/cortex-code/config.yaml and customize
+# Edit ~/.local/lib/cortexcode-tool/config.yaml after running integrations/codex/install.sh
 
 security:
   # SECURITY: Use "prompt" mode for interactive approval
@@ -442,7 +442,7 @@ security:
   tool_prediction_confidence_threshold: 0.7
   
   # SECURITY: Enable audit logging if using auto or envelope_only modes
-  audit_log_path: "~/.codex/skills/cortex-code/audit.log"
+  audit_log_path: "~/.cache/cortexcode-tool/audit.log"
   audit_log_rotation: "10MB"
   audit_log_retention: 30
   
@@ -450,7 +450,7 @@ security:
   sanitize_conversation_history: true
   
   # Secure caching directory
-  cache_dir: "~/.cache/cortex-skill"
+  cache_dir: "~/.cache/cortexcode-tool"
   cache_ttl: 86400  # 24 hours
   
   # SECURITY: Credential file allowlist - blocks routing if detected
@@ -520,14 +520,14 @@ security:
 **Manual Monitoring:**
 ```bash
 # Review recent audit logs
-tail -100 ~/.codex/skills/cortex-code/audit.log | jq
+tail -100 ~/.cache/cortexcode-tool/audit.log | jq
 
 # Count PII removal events
-cat ~/.codex/skills/cortex-code/audit.log | \
+cat ~/.cache/cortexcode-tool/audit.log | \
   jq 'select(.security.pii_removed == true)' | wc -l
 
 # Find failed executions
-cat ~/.codex/skills/cortex-code/audit.log | \
+cat ~/.cache/cortexcode-tool/audit.log | \
   jq 'select(.result.status != "success")'
 ```
 

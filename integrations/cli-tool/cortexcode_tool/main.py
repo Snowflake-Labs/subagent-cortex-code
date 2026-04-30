@@ -66,7 +66,7 @@ Note: Cursor users should use the Claude Code skill (/cortex-code) instead.
 
     parser.add_argument(
         "--config",
-        help="Path to config file (default: ~/.config/cortexcode-tool/config.yaml)"
+        help="Path to config file (default: package config, then ~/.config/cortexcode-tool/config.yaml)"
     )
 
     parser.add_argument(

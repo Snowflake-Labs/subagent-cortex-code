@@ -55,7 +55,9 @@ cortex:
   default_envelope: "RO"
 ```
 
-See `config.yaml.example` for all options.
+See `config.yaml.example` for all options. Keep `approval_mode: "prompt"` for
+interactive use; reserve `auto` or `envelope_only` for explicitly trusted
+automation.
 
 ## Usage
 
