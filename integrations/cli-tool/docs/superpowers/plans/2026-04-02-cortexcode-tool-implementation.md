@@ -1249,7 +1249,7 @@ def test_execute_cortex_builds_command():
         assert "cortex" in call_args
         assert "--output-format" in call_args
         assert "stream-json" in call_args
-        assert "--input-format" in call_args
+        assert "--input-format" not in call_args
 
 def test_execute_cortex_applies_envelope():
     """Test security envelope enforcement."""

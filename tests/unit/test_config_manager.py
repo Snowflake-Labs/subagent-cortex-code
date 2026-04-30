@@ -11,6 +11,7 @@ def test_load_default_config():
     # Should have default approval mode
     assert config.get("security.approval_mode") == "prompt"
     assert config.get("security.allowed_envelopes") == ["RO", "RW", "RESEARCH"]
+    assert "__CODING_AGENT__" in config.get("security.audit_log_path")
 
 
 def test_load_user_config(mock_config_dir, sample_config):

@@ -25,6 +25,12 @@ def test_cli_setup_writes_prompt_default():
     assert 'approval_mode: "auto"' not in setup_text
 
 
+def test_codex_cli_config_defaults_to_prompt():
+    config = yaml.safe_load(Path("integrations/codex/cortexcode-tool-codex.yaml").read_text())
+
+    assert config["security"]["approval_mode"] == "prompt"
+
+
 def test_cli_cache_directory_chmod_failure_is_nonfatal(tmp_path):
     cache_dir = tmp_path / "cache"
     cache_dir.mkdir()

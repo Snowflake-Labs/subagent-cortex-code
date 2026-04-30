@@ -63,7 +63,7 @@ For non-Snowflake requests, handle directly using Codex tools:
 ## Security expectations
 
 The cortexcode-tool uses built-in security flow:
-- Auto-approval mode (approval_mode: "auto")
+- Prompt approval by default (approval_mode: "prompt")
 - Audit logging to ~/.cache/cortexcode-tool/audit.log
 - Envelope-based tool restrictions
 - Prompt sanitization

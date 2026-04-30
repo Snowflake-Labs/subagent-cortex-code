@@ -34,17 +34,18 @@ class AuditLogger:
         self.log_path = Path(log_path)
         self.rotation_size = self._parse_size(rotation_size)
         self.retention_days = retention_days
+        self.initialization_error: Optional[str] = None
         # TODO: Implement cleanup of rotated files older than retention_days
 
-        # Ensure log directory exists
-        self.log_path.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            self.log_path.parent.mkdir(parents=True, exist_ok=True)
 
-        # Create log file if doesn't exist with correct permissions
-        if not self.log_path.exists():
-            self.log_path.touch(mode=0o600)
-        else:
-            # Set permissions on existing file
-            os.chmod(self.log_path, 0o600)
+            if not self.log_path.exists():
+                self.log_path.touch(mode=0o600)
+            else:
+                os.chmod(self.log_path, 0o600)
+        except OSError as exc:
+            self.initialization_error = str(exc)
 
     def log_execution(
         self,
@@ -58,6 +59,9 @@ class AuditLogger:
         security: Optional[Dict[str, Any]] = None
     ) -> str:
         """Log a cortex execution event."""
+        if self.initialization_error:
+            raise OSError(self.initialization_error)
+
         audit_id = str(uuid.uuid4())
 
         entry = {

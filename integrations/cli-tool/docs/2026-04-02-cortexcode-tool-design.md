@@ -255,7 +255,7 @@ Copied from cortex-code/scripts with adaptations:
 - **execute_cortex.py**: Cortex CLI execution wrapper
   - Build enriched prompt with context
   - Apply security envelope (RO/RW/RESEARCH/DEPLOY/NONE)
-  - Execute: `cortex -p "..." --output-format stream-json --input-format stream-json`
+  - Execute: `cortex -p "..." --output-format stream-json`
   - Parse NDJSON event stream in real-time
   - Handle tool_use events and results
   - Stream output to terminal
@@ -785,7 +785,7 @@ After invalidation, fresh discovery triggered automatically.
   
   No response received within 60 seconds. Query cancelled.
   
-  To auto-approve, set approval_mode: "auto" in config.
+  Keep `approval_mode: "prompt"` for interactive safety, or explicitly approve the operation when prompted.
   ```
 - **Exit code**: 6
 

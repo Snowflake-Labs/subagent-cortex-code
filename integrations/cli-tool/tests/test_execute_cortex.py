@@ -62,6 +62,28 @@ def test_ro_and_research_block_bash_entirely(mock_popen):
 
 
 @patch("cortexcode_tool.core.execute_cortex.subprocess.Popen")
+def test_rw_and_deploy_block_destructive_shell_patterns(mock_popen):
+    mock_process = MagicMock()
+    mock_process.stdout = []
+    mock_process.stderr = []
+    mock_process.wait.return_value = 0
+    mock_process.returncode = 0
+    mock_popen.return_value = mock_process
+
+    execute_cortex_streaming("test prompt", approval_mode="auto", envelope="RW")
+    rw_disallowed = _disallowed_from(mock_popen.call_args[0][0])
+
+    execute_cortex_streaming("test prompt", approval_mode="auto", envelope="DEPLOY")
+    deploy_disallowed = _disallowed_from(mock_popen.call_args[0][0])
+
+    for disallowed_tools in (rw_disallowed, deploy_disallowed):
+        assert "Bash" not in disallowed_tools
+        assert "Bash(rm *)" in disallowed_tools
+        assert "Bash(rm -rf *)" in disallowed_tools
+        assert "Bash(sudo *)" in disallowed_tools
+
+
+@patch("cortexcode_tool.core.execute_cortex.subprocess.Popen")
 def test_timeout_kills_process(mock_popen):
     mock_process = MagicMock()
     mock_process.stdout = []

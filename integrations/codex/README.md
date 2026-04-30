@@ -6,7 +6,7 @@ Codex does not use a skill directory for this integration. Instead, `cortexcode-
 
 ## Why CLI instead of skill?
 
-Codex uses `cortexcode-tool` as a standalone foreground command. The Codex-specific config uses `approval_mode: auto` with the restrictive `RO` envelope by default so non-interactive Snowflake reads can complete without a TTY prompt.
+Codex uses `cortexcode-tool` as a standalone foreground command. The Codex-specific config defaults to `approval_mode: prompt` with the restrictive `RO` envelope so Snowflake reads require explicit approval before execution.
 
 ## Prerequisites
 
@@ -71,7 +71,7 @@ Do **not** background the command (`& disown`). Codex automatically waits for fo
 Config example:
 ```yaml
 security:
-  approval_mode: "auto"
+  approval_mode: "prompt"
   audit_log_path: "~/.cache/cortexcode-tool/audit.log"
   cache_dir: "~/.cache/cortexcode-tool"
 
@@ -115,9 +115,9 @@ export PATH="$HOME/.local/bin:$PATH"
 
 **Command hangs in Codex:**
 ```bash
-# Verify approval_mode is auto (not prompt)
+# Verify approval_mode is prompt by default
 cat ~/.local/lib/cortexcode-tool/config.yaml | grep approval_mode
-# Must be: approval_mode: "auto"
+# Must be: approval_mode: "prompt"
 
 # Verify Cortex connection works
 cortex connections list

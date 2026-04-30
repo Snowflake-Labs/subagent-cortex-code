@@ -213,8 +213,8 @@ def test_execute_cortex_connection_parameter():
 
 
 @pytest.mark.unit
-def test_execute_cortex_deploy_envelope_no_blocklist():
-    """Test DEPLOY envelope has no tool blocklist."""
+def test_execute_cortex_deploy_envelope_blocks_destructive_shell():
+    """Test DEPLOY envelope still blocks destructive shell operations."""
     with patch('shared.scripts.execute_cortex.subprocess.Popen') as mock_popen:
         # Configure mock
         mock_process = MagicMock()
@@ -227,14 +227,41 @@ def test_execute_cortex_deploy_envelope_no_blocklist():
         # Execute with DEPLOY envelope
         list(execute_cortex_streaming("test prompt", envelope="DEPLOY", approval_mode="auto"))
 
-        # Verify no envelope-based disallowed tools
         cmd = mock_popen.call_args[0][0]
+        disallowed_tools = []
+        for i, arg in enumerate(cmd):
+            if arg == "--disallowed-tools" and i + 1 < len(cmd):
+                disallowed_tools.append(cmd[i + 1])
 
-        # DEPLOY should not add envelope-specific blocklist
-        # (user may still have custom disallowed_tools, but envelope doesn't add any)
-        disallowed_count = cmd.count("--disallowed-tools")
-        # Should be 0 or minimal (only if custom disallowed_tools passed)
-        assert disallowed_count == 0
+        assert "Bash(rm *)" in disallowed_tools
+        assert "Bash(rm -rf *)" in disallowed_tools
+        assert "Bash(sudo *)" in disallowed_tools
+        assert "Bash(git reset --hard *)" in disallowed_tools
+
+
+@pytest.mark.unit
+def test_execute_cortex_rw_envelope_blocks_destructive_shell():
+    """Test RW envelope blocks destructive shell operations."""
+    with patch('shared.scripts.execute_cortex.subprocess.Popen') as mock_popen:
+        mock_process = MagicMock()
+        mock_process.stdout = []
+        mock_process.poll.return_value = 0
+        mock_process.returncode = 0
+        mock_process.stderr.read.return_value = ""
+        mock_popen.return_value = mock_process
+
+        list(execute_cortex_streaming("test prompt", envelope="RW", approval_mode="auto"))
+
+        cmd = mock_popen.call_args[0][0]
+        disallowed_tools = []
+        for i, arg in enumerate(cmd):
+            if arg == "--disallowed-tools" and i + 1 < len(cmd):
+                disallowed_tools.append(cmd[i + 1])
+
+        assert "Bash" not in disallowed_tools
+        assert "Bash(rm *)" in disallowed_tools
+        assert "Bash(rm -rf *)" in disallowed_tools
+        assert "Bash(sudo *)" in disallowed_tools
 
 
 @pytest.mark.unit

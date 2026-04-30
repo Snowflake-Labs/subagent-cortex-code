@@ -112,3 +112,22 @@ def test_audit_log_permissions(temp_dir):
 
     # Assert permissions are owner read/write only
     assert file_mode == "-rw-------", f"Expected -rw-------, got {file_mode}"
+
+
+def test_audit_logger_initialization_failure_is_deferred(monkeypatch, temp_dir):
+    """Audit logger construction should not crash execution paths."""
+    log_path = temp_dir / "audit.log"
+
+    monkeypatch.setattr(Path, "touch", lambda *_args, **_kwargs: (_ for _ in ()).throw(PermissionError("denied")))
+
+    logger = AuditLogger(log_path)
+
+    assert logger.initialization_error is not None
+    with pytest.raises(OSError):
+        logger.log_execution(
+            event_type="test",
+            user="test_user",
+            routing={},
+            execution={},
+            result={}
+        )

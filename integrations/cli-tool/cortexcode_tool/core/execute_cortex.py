@@ -22,6 +22,14 @@ KNOWN_TOOLS = [
     "snowflake_sql_execute", "data_diff", "snowflake_query"
 ]
 
+DESTRUCTIVE_SHELL_TOOLS = [
+    "Bash(rm *)", "Bash(rm -rf *)", "Bash(rm -r *)",
+    "Bash(sudo *)", "Bash(chmod 777 *)",
+    "Bash(git push *)", "Bash(git reset --hard *)"
+]
+
+READ_ONLY_TOOLS = ["Edit", "Write", "Bash"] + DESTRUCTIVE_SHELL_TOOLS
+
 
 def invert_tools_to_disallowed(allowed_tools: List[str]) -> List[str]:
     """
@@ -103,22 +111,15 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
         envelope_tools = []
         if envelope == "RO":
             # Read-only: block all write operations
-            envelope_tools = [
-                "Edit", "Write", "Bash",
-                "Bash(rm *)", "Bash(rm -rf *)", "Bash(rm -r *)",
-                "Bash(sudo *)", "Bash(chmod 777 *)",
-                "Bash(git push *)", "Bash(git reset --hard *)"
-            ]
-        elif envelope == "DEPLOY":
-            # Full access: no blocklist
-            envelope_tools = []
+            envelope_tools = READ_ONLY_TOOLS
+        elif envelope in ["RW", "DEPLOY"]:
+            # RW and DEPLOY may allow shell usage, but still block destructive
+            # shell patterns by default. Explicit custom disallowed_tools can
+            # add stricter policy on top.
+            envelope_tools = DESTRUCTIVE_SHELL_TOOLS
         elif envelope == "RESEARCH":
             # Research: read-only plus web access
-            envelope_tools = [
-                "Edit", "Write", "Bash",
-                "Bash(rm *)", "Bash(rm -rf *)", "Bash(rm -r *)",
-                "Bash(sudo *)", "Bash(chmod 777 *)"
-            ]
+            envelope_tools = READ_ONLY_TOOLS
         # Merge envelope tools with final disallowed list
         if envelope_tools:
             final_disallowed_tools = list(set(final_disallowed_tools) | set(envelope_tools))
