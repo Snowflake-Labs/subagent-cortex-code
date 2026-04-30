@@ -13,7 +13,7 @@ Choose your coding agent:
 | **Claude Code** | `npx skills add snowflake-labs/subagent-cortex-code --copy --global` | [→ Claude Code](#claude-code) |
 | **Cursor** | `npx skills add snowflake-labs/subagent-cortex-code --copy --global` + copy routing rule | [→ Cursor](#cursor) |
 | **Windsurf** | `npx skills add snowflake-labs/subagent-cortex-code --copy --global` | [→ Windsurf](#windsurf) |
-| **Codex** | `bash integrations/codex/install.sh` (**not** npx — skill hangs in sandbox) | [→ Codex](#codex) |
+| **Codex** | `bash integrations/codex/install.sh` (**not** npx — uses `cortexcode-tool`) | [→ Codex](#codex) |
 | **GitHub Copilot** | `npx skills add snowflake-labs/subagent-cortex-code --copy --global` | [→ GitHub Copilot](#github-copilot) |
 | **VSCode / terminal** | `bash integrations/cli-tool/setup.sh` | [→ CLI tool](#vscode--terminal) |
 
@@ -394,12 +394,13 @@ ls ~/.codeium/windsurf/skills/cortex-code/SKILL.md          # Windsurf
 # If missing, re-run: npx skills add snowflake-labs/subagent-cortex-code --copy --global
 ```
 
-**Codex command hanging:**
+**Codex command waits or needs network approval:**
 ```bash
 # Verify cortexcode-tool config exists and check approval mode
 cat ~/.local/lib/cortexcode-tool/config.yaml | grep approval_mode
 # Interactive installs should prefer: approval_mode: "prompt"
 ```
+Approve the planned Cortex Code execution in Codex chat, then retry the same foreground command with `--yes`.
 
 **cortexcode-tool not found (Codex / CLI):**
 ```bash

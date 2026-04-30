@@ -162,7 +162,7 @@ def main():
     parser.add_argument(
         "--cache-dir",
         type=Path,
-        help="Cache directory for storing capabilities (default: from config or ~/.cache/cortex-skill)"
+        help="Cache directory for storing capabilities (default: from config or ~/.cache/cortexcode-tool)"
     )
     args = parser.parse_args()
 
