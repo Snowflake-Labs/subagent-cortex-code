@@ -113,7 +113,7 @@ def execute_with_security(
                 "message": "Cannot route prompts containing credential file paths for security"
             }
 
-    # Step 5: Determine routing (cortex vs CodingAgent) on sanitized prompt
+    # Step 5: Determine routing (cortex vs codex) on sanitized prompt
     capabilities = load_cortex_capabilities()
     route_decision, route_confidence = analyze_with_llm_logic(sanitized_prompt, capabilities)
 
@@ -148,8 +148,9 @@ def execute_with_security(
         }
 
     # Step 8: Full execution flow
-    # Route to CodingAgent for non-Snowflake requests
-    if route_decision == "coding_agent":
+    # Route to the host coding agent for non-Snowflake requests. Shared code may
+    # still return the installation placeholder before agent-specific sed runs.
+    if route_decision in ["__CODING_AGENT__", "codex"]:
         return {
             "status": "routed_to_coding_agent",
             "message": "Request routed to coding agent for local handling",

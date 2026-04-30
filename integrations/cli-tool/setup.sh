@@ -100,7 +100,7 @@ cat > "$INSTALL_DIR/config.yaml" << EOF
 # (sandbox blocks ~/.cache/ → PermissionError → tool runs outside sandbox → network works)
 
 security:
-  approval_mode: "auto"
+  approval_mode: "prompt"
   audit_log_path: "~/.cache/cortexcode-tool/audit.log"
   sanitize_prompts: true
   block_credential_paths: true

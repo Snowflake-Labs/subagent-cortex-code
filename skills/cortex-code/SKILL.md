@@ -240,13 +240,13 @@ $PYTHON scripts/execute_cortex.py \
 ```
 
 This script:
-1. Invokes `cortex -p "prompt" --output-format stream-json --bypass`
-2. Uses `--bypass` for headless auto-approval without interactive stdin
+1. Invokes `cortex -p "prompt" --output-format stream-json --input-format stream-json`
+2. Uses stream JSON mode for non-TTY execution without the `--bypass` flag
 3. Applies envelope-based security via `--disallowed-tools` blocklist for safety
 4. Parses NDJSON event stream in real-time
 5. Detects tool use events and execution results
 
-**Key Insight**: `--bypass` puts Cortex in headless mode where all tool calls auto-execute without interactive permission prompts. This works for both built-in and non-builtin tools (snowflake_sql_execute, data_diff, MCP tools, etc.) without a TTY or stdin. Note: `--input-format stream-json` does NOT work for headless execution — it hangs waiting for stdin in non-TTY environments.
+**Key Insight**: `--input-format stream-json` enables programmatic non-TTY execution. In `auto` and `envelope_only` modes, non-blocked tool calls execute without interactive permission prompts, so those modes must remain trusted and opt-in.
 
 **Security Envelopes**:
 - **RO** (Read-Only): Blocks Edit, Write, destructive Bash commands
@@ -264,7 +264,7 @@ This script:
 
 With the security wrapper:
 - **prompt mode**: User approves BEFORE execution (no mid-execution prompts)
-- **auto/envelope_only modes**: All tools auto-approved via `--bypass` flag
+- **auto/envelope_only modes**: Non-blocked tools are auto-approved in stream JSON mode
 
 The security wrapper handles permission management through:
 1. **Upfront approval** (prompt mode): User approves predicted tools before execution
@@ -335,8 +335,8 @@ The skill uses a security wrapper that provides:
 When using auto or envelope_only modes:
 - All tool calls are automatically approved without interactive prompts
 - Works for built-in tools (Read, Write, Edit, Bash, Grep, Glob) and non-builtin tools (snowflake_sql_execute, data_diff, MCP tools)
-- Uses `--bypass` flag for non-TTY headless execution (stdin is ignored)
-- Security is controlled via `--disallowed-tools` blocklist instead of interactive approval
+- Uses stream JSON mode for non-TTY execution (stdin is closed by the wrapper)
+- Security is controlled via `--disallowed-tools` blocklist instead of interactive approval; use these modes only in trusted contexts
 
 ### Stateless Execution
 Each Cortex invocation is stateless. Context must be explicitly provided via enriched prompts.
@@ -427,9 +427,9 @@ grep audit_log_path config.yaml
 ```
 
 ### Error: Tools still requiring approval
-**Cause**: Missing `--bypass` flag or approval_mode not set to `auto`/`envelope_only`
+**Cause**: Approval mode, envelope blocklist, or stream JSON invocation is misconfigured
 
-**Solution**: Ensure `--output-format stream-json --bypass` are both present. The `--bypass` flag is what enables headless auto-approval mode. The security wrapper handles this automatically. Note: `--input-format stream-json` does NOT work — it hangs in non-TTY environments.
+**Solution**: Ensure `--output-format stream-json --input-format stream-json` are present, stdin is closed by the wrapper, and the configured envelope does not block the intended tool.
 
 ### Issue: Routing sends Snowflake query to your coding agent
 **Cause**: Routing logic didn't detect Snowflake keywords
