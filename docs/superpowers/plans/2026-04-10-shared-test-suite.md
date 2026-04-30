@@ -646,7 +646,7 @@ def test_rw_envelope_minimal_restrictions():
 
 @pytest.mark.unit
 def test_auto_approval_mode():
-    """Historical note: wrappers no longer combine -p with --input-format stream-json"""
+    """Auto mode with --input-format stream-json enables auto-approval"""
     with patch('execute_cortex.subprocess.Popen') as mock_popen:
         mock_popen.return_value.stdout = iter([])
         mock_popen.return_value.stderr = MagicMock()
