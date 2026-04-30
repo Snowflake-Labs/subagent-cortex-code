@@ -62,11 +62,10 @@ def test_cli_cache_directory_chmod_failure_is_nonfatal(tmp_path):
 def test_codex_network_disabled_sandbox_requests_host_escalation(monkeypatch):
     monkeypatch.setenv("CODEX_SANDBOX_NETWORK_DISABLED", "1")
 
-    assert should_request_codex_escalation() is True
+    assert should_request_codex_escalation(approved=False) is True
 
 
-def test_codex_sandbox_guard_can_be_disabled_after_escalation(monkeypatch):
+def test_codex_sandbox_guard_allows_yes_after_host_approval(monkeypatch):
     monkeypatch.setenv("CODEX_SANDBOX_NETWORK_DISABLED", "1")
-    monkeypatch.setenv("CORTEXCODE_ALLOW_CODEX_SANDBOX", "1")
 
-    assert should_request_codex_escalation() is False
+    assert should_request_codex_escalation(approved=True) is False

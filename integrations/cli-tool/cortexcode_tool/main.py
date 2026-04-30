@@ -25,7 +25,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def should_request_codex_escalation() -> bool:
+def should_request_codex_escalation(approved: bool = False) -> bool:
     """Return True when running inside Codex's network-disabled sandbox.
 
     Cortex Code must reach Snowflake/Cortex services. In Codex, commands that
@@ -33,10 +33,7 @@ def should_request_codex_escalation() -> bool:
     hanging until the Cortex subprocess times out. The override is set by tests
     and by callers that intentionally run the tool outside the sandbox.
     """
-    return (
-        os.environ.get("CODEX_SANDBOX_NETWORK_DISABLED") == "1"
-        and os.environ.get("CORTEXCODE_ALLOW_CODEX_SANDBOX") != "1"
-    )
+    return os.environ.get("CODEX_SANDBOX_NETWORK_DISABLED") == "1" and not approved
 
 
 def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
@@ -284,11 +281,11 @@ def main(argv: Optional[List[str]] = None) -> int:
             return 0
 
         elif args.query:
-            if should_request_codex_escalation():
+            if should_request_codex_escalation(approved=args.yes):
                 print(
                     "cortexcode-tool requires network access to reach Cortex/Snowflake. "
-                    "Approve running this command outside the Codex sandbox, then retry the "
-                    "same command.",
+                    "Approve the planned Cortex Code execution in Codex chat, then retry "
+                    "with --yes.",
                     file=sys.stderr,
                 )
                 return 2

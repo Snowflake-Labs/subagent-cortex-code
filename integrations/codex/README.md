@@ -32,10 +32,10 @@ The script:
 
 ```bash
 cortexcode-tool --version
-CORTEXCODE_ALLOW_CODEX_SANDBOX=1 cortexcode-tool --yes "How many databases do I have in Snowflake?" --envelope RO
+cortexcode-tool --yes "How many databases do I have in Snowflake?" --envelope RO
 ```
 
-Expected: after you have approved the planned execution and network/sandbox access in Codex chat, the tool runs for 30–90 seconds, then prints formatted results.
+Expected: after you have approved the planned execution in Codex chat, the tool runs for 30–90 seconds, then prints formatted results.
 
 ## Usage from Codex
 
@@ -50,14 +50,14 @@ Once discovered, Codex will invoke `cortexcode-tool` for Snowflake questions aut
 
 ```bash
 # Explicit
-CORTEXCODE_ALLOW_CODEX_SANDBOX=1 cortexcode-tool --yes "How many databases do I have in Snowflake?"
+cortexcode-tool --yes "How many databases do I have in Snowflake?"
 
 # Implicit — Codex detects the Snowflake intent and calls cortexcode-tool on its own
 How many databases do I have in Snowflake?
 ```
 
 No need to specify `--envelope` in your prompts. Codex selects the appropriate envelope based on the operation.
-Use `--yes` only after Codex has shown the planned Cortex Code execution and the user has approved it in chat. Use `CORTEXCODE_ALLOW_CODEX_SANDBOX=1` only after the user has also approved running outside the Codex network sandbox.
+Use `--yes` only after Codex has shown the planned Cortex Code execution and the user has approved it in chat.
 
 Do **not** background the command (`& disown`). Codex automatically waits for foreground commands to complete (30–90 seconds is normal).
 
