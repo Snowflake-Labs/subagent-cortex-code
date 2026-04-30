@@ -21,12 +21,13 @@ When this skill triggers, follow this workflow.
 
 ### 1. Execute Snowflake queries via cortexcode-tool
 
-Run `cortexcode-tool` as a **foreground command** — do NOT background it with `&`.
-Codex automatically waits for long-running commands ("Waited for background terminal").
-The command takes 30-90 seconds.
+Ask the user for approval in Codex before execution. After approval, run
+`cortexcode-tool` as a **foreground command** with `--yes` — do NOT background it
+with `&`. Codex automatically waits for long-running commands ("Waited for
+background terminal"). The command takes 30-90 seconds.
 
 ```bash
-cortexcode-tool "USER_PROMPT_HERE" --envelope RO --config ~/.local/lib/cortexcode-tool/config.yaml
+cortexcode-tool --yes "USER_PROMPT_HERE" --envelope RO --config ~/.local/lib/cortexcode-tool/config.yaml
 ```
 
 Choose envelope based on operation:
@@ -37,6 +38,7 @@ Choose envelope based on operation:
 
 **IMPORTANT**: Do not call `cortex -p` directly — it requires interactive stdin and will hang.
 **IMPORTANT**: Do not use `& disown` or background execution — Codex cannot track orphaned processes.
+**IMPORTANT**: Do not use `--yes` until the user has approved the planned Cortex Code execution in Codex chat.
 
 ### 2. Present results back in Codex
 
@@ -105,15 +107,15 @@ If the command times out, retry once — Snowflake connection may have been cold
 
 **Snowflake database count:**
 ```bash
-cortexcode-tool "How many databases do I have in Snowflake?" --envelope RO --config ~/.local/lib/cortexcode-tool/config.yaml
+cortexcode-tool --yes "How many databases do I have in Snowflake?" --envelope RO --config ~/.local/lib/cortexcode-tool/config.yaml
 ```
 
 **Query specific database:**
 ```bash
-cortexcode-tool "What tables are in DB_STOCK database?" --envelope RO --config ~/.local/lib/cortexcode-tool/config.yaml
+cortexcode-tool --yes "What tables are in DB_STOCK database?" --envelope RO --config ~/.local/lib/cortexcode-tool/config.yaml
 ```
 
 **Data modification:**
 ```bash
-cortexcode-tool "Create a backup table of SALES_DATA" --envelope RW --config ~/.local/lib/cortexcode-tool/config.yaml
+cortexcode-tool --yes "Create a backup table of SALES_DATA" --envelope RW --config ~/.local/lib/cortexcode-tool/config.yaml
 ```

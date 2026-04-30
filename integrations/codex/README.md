@@ -32,10 +32,10 @@ The script:
 
 ```bash
 cortexcode-tool --version
-cortexcode-tool "How many databases do I have in Snowflake?" --envelope RO
+cortexcode-tool --yes "How many databases do I have in Snowflake?" --envelope RO
 ```
 
-Expected: the tool runs for 30–90 seconds, then prints formatted results.
+Expected: after you have approved the planned execution in Codex chat, the tool runs for 30–90 seconds, then prints formatted results.
 
 ## Usage from Codex
 
@@ -50,13 +50,14 @@ Once discovered, Codex will invoke `cortexcode-tool` for Snowflake questions aut
 
 ```bash
 # Explicit
-cortexcode-tool "How many databases do I have in Snowflake?"
+cortexcode-tool --yes "How many databases do I have in Snowflake?"
 
 # Implicit — Codex detects the Snowflake intent and calls cortexcode-tool on its own
 How many databases do I have in Snowflake?
 ```
 
 No need to specify `--envelope` in your prompts. Codex selects the appropriate envelope based on the operation.
+Use `--yes` only after Codex has shown the planned Cortex Code execution and the user has approved it in chat.
 
 Do **not** background the command (`& disown`). Codex automatically waits for foreground commands to complete (30–90 seconds is normal).
 

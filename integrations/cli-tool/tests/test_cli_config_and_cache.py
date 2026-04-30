@@ -10,6 +10,7 @@ import yaml
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from cortexcode_tool.security.cache_manager import CacheManager
+from cortexcode_tool.main import parse_args
 
 
 def test_cli_example_config_defaults_to_prompt():
@@ -29,6 +30,21 @@ def test_codex_cli_config_defaults_to_prompt():
     config = yaml.safe_load(Path("integrations/codex/cortexcode-tool-codex.yaml").read_text())
 
     assert config["security"]["approval_mode"] == "prompt"
+
+
+def test_cli_supports_explicit_yes_after_host_approval():
+    args = parse_args(["--yes", "--envelope", "RO", "How many databases?"])
+
+    assert args.yes is True
+    assert args.envelope == "RO"
+    assert args.query == "How many databases?"
+
+
+def test_codex_skill_uses_yes_flag_after_host_approval():
+    skill_text = Path("integrations/codex/SKILL.md").read_text()
+
+    assert "--yes" in skill_text
+    assert "Ask the user for approval in Codex" in skill_text
 
 
 def test_cli_cache_directory_chmod_failure_is_nonfatal(tmp_path):

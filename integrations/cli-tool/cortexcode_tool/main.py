@@ -58,6 +58,12 @@ Note: Cursor users should use the Claude Code skill (/cortex-code) instead.
     )
 
     parser.add_argument(
+        "--yes",
+        action="store_true",
+        help="Confirm execution after the host coding agent has already obtained user approval"
+    )
+
+    parser.add_argument(
         "--discover-capabilities",
         action="store_true",
         help="Force rediscovery of Cortex capabilities"
@@ -90,7 +96,8 @@ def execute_query(
     query: str,
     config: ConfigManager,
     cache: CacheManager,
-    logger_instance: Optional[AuditLogger]
+    logger_instance: Optional[AuditLogger],
+    approved: bool = False
 ) -> int:
     """Execute a Snowflake query via Cortex Code.
 
@@ -135,7 +142,9 @@ def execute_query(
     # Handle approval if needed
     approval_mode = config.get("security.approval_mode", "prompt")
 
-    if approval_mode == "prompt":
+    if approval_mode == "prompt" and approved:
+        print("✓ Execution approved by host coding agent", file=sys.stderr)
+    elif approval_mode == "prompt":
         # Show approval prompt
         handler = ApprovalHandler()
         predicted_tools = handler.predict_tools(query)
@@ -267,7 +276,7 @@ def main(argv: Optional[List[str]] = None) -> int:
                     log_path=config.get("security.audit_log_path")
                 )
 
-            return execute_query(args.query, config, cache, audit_logger)
+            return execute_query(args.query, config, cache, audit_logger, approved=args.yes)
 
         else:
             # No command provided
