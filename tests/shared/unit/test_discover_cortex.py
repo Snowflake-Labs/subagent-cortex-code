@@ -79,6 +79,7 @@ def test_discover_cortex_skills_new_format(mock_cortex_output_new_format):
             assert isinstance(skills, dict)
             # Should have called read_skill_metadata for each skill
             assert mock_read.call_count >= 3  # At least 3 skills in new format
+            assert set(skills) >= {"snowflake-query", "data-quality", "cortex-search"}
 
 
 @pytest.mark.unit

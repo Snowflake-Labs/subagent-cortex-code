@@ -281,7 +281,7 @@ Snowflake Execution       General Tasks
 Configure in `config.yaml` in the skill's install directory (for skill-based agents) or `~/.local/lib/cortexcode-tool/config.yaml` (for CLI-based agents):
 ```yaml
 security:
-  approval_mode: "auto"  # or "prompt" or "envelope_only"
+  approval_mode: "prompt"  # or "auto" or "envelope_only"
 ```
 
 ### Security Envelopes
@@ -320,11 +320,11 @@ This is **future-proof**: new Cortex releases with additional skills work automa
 
 ### Headless Execution
 
-Cortex is invoked with `--bypass` for non-TTY headless execution:
+Cortex is invoked with stream JSON output for non-TTY execution:
 ```bash
-cortex -p "ENRICHED_PROMPT" --output-format stream-json --bypass
+cortex -p "ENRICHED_PROMPT" --output-format stream-json --input-format stream-json
 ```
-Security is enforced via `--disallowed-tools` blocklist (controlled by the chosen envelope).
+Security is enforced via `--disallowed-tools` blocklist (controlled by the chosen envelope). Auto and envelope-only modes are trusted, opt-in modes because they approve non-blocked tools without an interactive prompt.
 
 ## Real-World Example
 
@@ -389,9 +389,9 @@ ls ~/.codeium/windsurf/skills/cortex-code/SKILL.md          # Windsurf
 
 **Codex command hanging:**
 ```bash
-# Verify cortexcode-tool config exists and uses auto approval
+# Verify cortexcode-tool config exists and check approval mode
 cat ~/.local/lib/cortexcode-tool/config.yaml | grep approval_mode
-# Should be: approval_mode: "auto"
+# Interactive installs should prefer: approval_mode: "prompt"
 ```
 
 **cortexcode-tool not found (Codex / CLI):**

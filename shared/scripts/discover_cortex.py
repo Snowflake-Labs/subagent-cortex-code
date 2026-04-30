@@ -70,10 +70,10 @@ def discover_cortex_skills():
                 continue
             skill_name = parts[0].strip(':').strip()
 
-            # Read the skill's SKILL.md to get description and triggers
-            skill_info = read_skill_metadata(skill_name)
-            if skill_info:
-                skills[skill_name] = skill_info
+        # Read the skill's SKILL.md to get description and triggers
+        skill_info = read_skill_metadata(skill_name)
+        if skill_info:
+            skills[skill_name] = skill_info
 
     return skills
 

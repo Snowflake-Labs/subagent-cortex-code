@@ -6,6 +6,8 @@ Tests tool inversion logic and integration with security wrapper.
 
 import pytest
 import sys
+import json
+import subprocess
 from pathlib import Path
 from unittest.mock import Mock, patch, MagicMock
 from typing import List, Optional
@@ -17,8 +19,14 @@ sys.path.insert(0, str(scripts_dir))
 from execute_cortex import (
     execute_cortex_streaming,
     invert_tools_to_disallowed,
-    KNOWN_TOOLS
+    KNOWN_TOOLS,
+    main
 )
+
+
+class RaisingStdout:
+    def __iter__(self):
+        raise RuntimeError("stream failed")
 
 
 class TestToolInversion:
@@ -292,6 +300,89 @@ class TestCLIInterface:
                 call_kwargs = mock_exec.call_args[1]
                 assert 'allowed_tools' in call_kwargs
                 assert call_kwargs['allowed_tools'] == ['Read', 'Write']
+
+    def test_cli_output_file_argument_writes_json(self, tmp_path, capsys):
+        """CLI should accept --output-file and write results there."""
+        output_file = tmp_path / "cortex-result.json"
+
+        with patch('execute_cortex.execute_cortex_streaming') as mock_exec:
+            mock_exec.return_value = {"final_result": "ok", "error": None}
+            with patch('sys.argv', [
+                'execute_cortex.py',
+                '--prompt', 'test',
+                '--output-file', str(output_file)
+            ]):
+                result = main()
+
+        assert result == 0
+        assert json.loads(output_file.read_text()) == {"final_result": "ok", "error": None}
+        assert capsys.readouterr().out == ""
+
+
+class TestSubprocessLifecycle:
+    """Test subprocess timeout, stderr, and stream parsing behavior."""
+
+    @patch('execute_cortex.subprocess.Popen')
+    def test_nonzero_exit_captures_stderr_without_read_after_wait(self, mock_popen):
+        mock_process = MagicMock()
+        mock_process.stdout = []
+        mock_process.stderr = MagicMock()
+        mock_process.stderr.__iter__.return_value = iter(["bad\n", "worse\n"])
+        mock_process.wait.return_value = 2
+        mock_process.returncode = 2
+        mock_popen.return_value = mock_process
+
+        result = execute_cortex_streaming(prompt="Test prompt", timeout_seconds=1)
+
+        assert result["error"] == "bad\nworse\n"
+        mock_process.stderr.read.assert_not_called()
+
+    @patch('execute_cortex.subprocess.Popen')
+    def test_timeout_kills_process(self, mock_popen):
+        mock_process = MagicMock()
+        mock_process.stdout = []
+        mock_process.stderr = []
+        mock_process.wait.side_effect = subprocess.TimeoutExpired(cmd="cortex", timeout=1)
+        mock_popen.return_value = mock_process
+
+        result = execute_cortex_streaming(prompt="Test prompt", timeout_seconds=1)
+
+        assert "timed out" in result["error"]
+        mock_process.kill.assert_called_once()
+
+    @patch('execute_cortex.subprocess.Popen')
+    def test_exception_kills_process(self, mock_popen):
+        mock_process = MagicMock()
+        mock_process.stdout = RaisingStdout()
+        mock_process.stderr = []
+        mock_popen.return_value = mock_process
+
+        result = execute_cortex_streaming(prompt="Test prompt", timeout_seconds=1)
+
+        assert "stream failed" in result["error"]
+        mock_process.kill.assert_called_once()
+
+    @patch('execute_cortex.subprocess.Popen')
+    def test_tool_result_list_content_does_not_crash(self, mock_popen):
+        mock_process = MagicMock()
+        mock_process.stdout = [json.dumps({
+            "type": "user",
+            "message": {
+                "content": [{
+                    "type": "tool_result",
+                    "tool_use_id": "tool-1",
+                    "content": [{"type": "text", "text": "Permission denied"}]
+                }]
+            }
+        }) + "\n"]
+        mock_process.stderr = []
+        mock_process.wait.return_value = 0
+        mock_process.returncode = 0
+        mock_popen.return_value = mock_process
+
+        result = execute_cortex_streaming(prompt="Test prompt", timeout_seconds=1)
+
+        assert result["permission_requests"][0]["tool_use_id"] == "tool-1"
 
 
 class TestBackwardCompatibility:

@@ -35,6 +35,9 @@ CLAUDE_CODE_INDICATORS = [
     "read file", "write file", "edit file", "create file"
 ]
 
+# Backwards-compatible name used by shared tests and copied integrations.
+CODING_AGENT_INDICATORS = CLAUDE_CODE_INDICATORS
+
 
 def load_cortex_capabilities():
     """Load cached Cortex capabilities using CacheManager."""
@@ -111,15 +114,16 @@ def analyze_with_llm_logic(prompt, capabilities):
     # Calculate confidence
     total_score = snowflake_score + claude_score
     if total_score == 0:
-        # No strong indicators, default to Codex for safety
-        return "codex", 0.5
+        # No strong indicators, default to the host coding agent for safety.
+        # Install scripts replace this placeholder with claude/codex/cursor.
+        return "__CODING_AGENT__", 0.5
 
     confidence = max(snowflake_score, claude_score) / total_score
 
     if snowflake_score > claude_score:
         return "cortex", confidence
     else:
-        return "codex", confidence
+        return "__CODING_AGENT__", confidence
 
 
 def check_credential_allowlist(

@@ -2,6 +2,7 @@
 
 import pytest
 import tempfile
+import yaml
 from pathlib import Path
 
 
@@ -71,3 +72,11 @@ def test_install_creates_default_config():
     """Install should create config.yaml from example if not exists"""
     # Mock test
     assert Path("integrations/claude-code/config.yaml.example").exists()
+
+
+@pytest.mark.integration
+def test_claude_code_config_defaults_to_prompt():
+    """Shipped Claude Code config should require interactive approval by default."""
+    config = yaml.safe_load(Path("integrations/claude-code/config.yaml").read_text())
+
+    assert config["security"]["approval_mode"] == "prompt"

@@ -9,6 +9,8 @@ import json
 import subprocess
 import sys
 import argparse
+import threading
+from pathlib import Path
 from typing import List, Dict, Optional
 
 
@@ -43,7 +45,8 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
                              disallowed_tools: Optional[List[str]] = None,
                              envelope: str = "RW",
                              approval_mode: str = "auto",
-                             allowed_tools: Optional[List[str]] = None) -> Dict:
+                             allowed_tools: Optional[List[str]] = None,
+                             timeout_seconds: int = 300) -> Dict:
     """
     Execute Cortex with streaming JSON output in programmatic mode.
 
@@ -103,7 +106,7 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
         if envelope == "RO":
             # Read-only: block all write operations
             envelope_tools = [
-                "Edit", "Write",
+                "Edit", "Write", "Bash",
                 "Bash(rm *)", "Bash(rm -rf *)", "Bash(rm -r *)",
                 "Bash(sudo *)", "Bash(chmod 777 *)",
                 "Bash(git push *)", "Bash(git reset --hard *)"
@@ -114,7 +117,7 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
         elif envelope == "RESEARCH":
             # Research: read-only plus web access
             envelope_tools = [
-                "Edit", "Write",
+                "Edit", "Write", "Bash",
                 "Bash(rm *)", "Bash(rm -rf *)", "Bash(rm -r *)",
                 "Bash(sudo *)", "Bash(chmod 777 *)"
             ]
@@ -134,6 +137,24 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
         debug_cmd += f" --disallowed-tools {' '.join(final_disallowed_tools[:3])}{'...' if len(final_disallowed_tools) > 3 else ''}"
     print(debug_cmd, file=sys.stderr)
 
+    process = None
+    stderr_lines = []
+
+    def _read_stderr(stderr):
+        if stderr is None:
+            return
+        for stderr_line in stderr:
+            stderr_lines.append(stderr_line)
+
+    def _kill_process():
+        if not process:
+            return
+        process.kill()
+        try:
+            process.wait(timeout=1)
+        except Exception:
+            pass
+
     try:
         # Start process. stdin=DEVNULL is critical: --input-format stream-json
         # puts Cortex in programmatic mode but it must not wait on stdin for
@@ -146,6 +167,9 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
             text=True,
             bufsize=1
         )
+
+        stderr_thread = threading.Thread(target=_read_stderr, args=(process.stderr,), daemon=True)
+        stderr_thread.start()
 
         results = {
             "session_id": None,
@@ -192,12 +216,13 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
                     for item in content:
                         if item.get("type") == "tool_result":
                             tool_content = item.get("content", "")
-                            if "Permission denied" in tool_content or "denied" in tool_content.lower():
+                            tool_content_text = json.dumps(tool_content) if isinstance(tool_content, list) else str(tool_content)
+                            if "Permission denied" in tool_content_text or "denied" in tool_content_text.lower():
                                 results["permission_requests"].append({
                                     "tool_use_id": item.get("tool_use_id"),
                                     "content": tool_content
                                 })
-                                print(f"[Cortex] Permission request detected: {tool_content}", file=sys.stderr)
+                                print(f"[Cortex] Permission request detected: {tool_content_text}", file=sys.stderr)
 
                 # Handle final result
                 elif event_type == "result":
@@ -209,18 +234,30 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
                 continue
 
         # Wait for process to complete
-        process.wait()
+        process.wait(timeout=timeout_seconds)
+        stderr_thread.join(timeout=1)
 
         # Check for errors
         if process.returncode != 0:
-            stderr_output = process.stderr.read()
+            stderr_output = "".join(stderr_lines)
             results["error"] = stderr_output
             print(f"Error: Cortex exited with code {process.returncode}", file=sys.stderr)
             print(f"Stderr: {stderr_output}", file=sys.stderr)
 
         return results
 
+    except subprocess.TimeoutExpired:
+        _kill_process()
+        return {
+            "session_id": None,
+            "events": [],
+            "permission_requests": [],
+            "final_result": None,
+            "error": f"Cortex execution timed out after {timeout_seconds} seconds"
+        }
+
     except Exception as e:
+        _kill_process()
         return {
             "session_id": None,
             "events": [],
@@ -244,6 +281,9 @@ def main():
                        help="Approval mode (default: auto)")
     parser.add_argument("--allowed-tools", nargs="+",
                        help="Tools that are allowed (for prompt mode)")
+    parser.add_argument("--timeout", type=int, default=300,
+                       help="Maximum seconds to wait for Cortex execution (default: 300)")
+    parser.add_argument("--output-file", help="Write JSON results to this file instead of stdout")
     parser.add_argument("--stream", action="store_true", help="Stream output (always true)")
     args = parser.parse_args()
 
@@ -254,11 +294,18 @@ def main():
         disallowed_tools=args.disallowed_tools,
         envelope=args.envelope,
         approval_mode=args.approval_mode,
-        allowed_tools=args.allowed_tools
+        allowed_tools=args.allowed_tools,
+        timeout_seconds=args.timeout
     )
 
     # Output results as JSON
-    print(json.dumps(results, indent=2))
+    output = json.dumps(results, indent=2)
+    if args.output_file:
+        output_path = Path(args.output_file)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(output + "\n")
+    else:
+        print(output)
 
     # Exit with appropriate code
     if results.get("error"):

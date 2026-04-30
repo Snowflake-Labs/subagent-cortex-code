@@ -117,6 +117,16 @@ def test_cache_location_not_tmp(mock_cache_dir):
     assert "/tmp" not in str(production_cache_dir)
 
 
+def test_cache_directory_chmod_failure_is_nonfatal(mock_cache_dir):
+    """Cache initialization should continue if chmod is denied by the OS."""
+    with pytest.warns(RuntimeWarning, match="Could not set secure permissions"):
+        with pytest.MonkeyPatch.context() as monkeypatch:
+            monkeypatch.setattr(os, "chmod", lambda *_args, **_kwargs: (_ for _ in ()).throw(PermissionError("denied")))
+            cache = CacheManager(mock_cache_dir)
+
+    assert cache.cache_dir == mock_cache_dir
+
+
 def test_invalid_cache_keys(mock_cache_dir):
     """Test that invalid cache keys raise ValueError."""
     cache = CacheManager(mock_cache_dir)

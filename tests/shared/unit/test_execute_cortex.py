@@ -123,6 +123,7 @@ def test_execute_cortex_ro_envelope():
 
         assert "Edit" in disallowed_tools
         assert "Write" in disallowed_tools
+        assert "Bash" in disallowed_tools
 
 
 @pytest.mark.unit
