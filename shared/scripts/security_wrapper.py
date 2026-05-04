@@ -282,6 +282,7 @@ def execute_with_security(
             approval_mode=approval_mode,
             allowed_tools=allowed_tools,
             timeout_seconds=int(config_manager.get("security.execution_timeout_seconds", 5)),
+            deploy_confirmed=bool(config_manager.get("security.deploy_envelope_confirmation", True) and envelope_mode == "DEPLOY"),
         )
         execution_result.setdefault("status", "success" if not execution_result.get("error") else "error")
         execution_result.setdefault("tools_used", allowed_tools or ["envelope-controlled"])

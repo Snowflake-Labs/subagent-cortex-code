@@ -35,8 +35,8 @@ def test_invert_tools_empty_allowed():
     disallowed = invert_tools_to_disallowed(allowed)
 
     # Should return all KNOWN_TOOLS
-    assert len(disallowed) == len(KNOWN_TOOLS)
-    assert set(disallowed) == set(KNOWN_TOOLS)
+    assert len(disallowed) == len(KNOWN_TOOLS) + 1
+    assert set(disallowed) == set(KNOWN_TOOLS + ["*"])
 
 
 @pytest.mark.unit
@@ -46,7 +46,7 @@ def test_invert_tools_all_allowed():
     disallowed = invert_tools_to_disallowed(allowed)
 
     # Should return empty list
-    assert disallowed == []
+    assert disallowed == ["*"]
 
 
 @pytest.mark.unit
@@ -225,7 +225,7 @@ def test_execute_cortex_deploy_envelope_blocks_destructive_shell():
         mock_popen.return_value = mock_process
 
         # Execute with DEPLOY envelope
-        list(execute_cortex_streaming("test prompt", envelope="DEPLOY", approval_mode="auto"))
+        list(execute_cortex_streaming("test prompt", envelope="DEPLOY", approval_mode="auto", deploy_confirmed=True))
 
         cmd = mock_popen.call_args[0][0]
         disallowed_tools = []

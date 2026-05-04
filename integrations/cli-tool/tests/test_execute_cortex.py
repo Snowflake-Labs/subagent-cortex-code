@@ -73,7 +73,7 @@ def test_rw_and_deploy_block_destructive_shell_patterns(mock_popen):
     execute_cortex_streaming("test prompt", approval_mode="auto", envelope="RW")
     rw_disallowed = _disallowed_from(mock_popen.call_args[0][0])
 
-    execute_cortex_streaming("test prompt", approval_mode="auto", envelope="DEPLOY")
+    execute_cortex_streaming("test prompt", approval_mode="auto", envelope="DEPLOY", deploy_confirmed=True)
     deploy_disallowed = _disallowed_from(mock_popen.call_args[0][0])
 
     for disallowed_tools in (rw_disallowed, deploy_disallowed):

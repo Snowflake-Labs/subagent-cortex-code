@@ -97,6 +97,11 @@ class ConfigManager:
                     f"audit_log_retention must be >= 0, got {retention}"
                 )
 
+    def _safe_placeholder_path(self, original_path: str) -> str:
+        """Fallback when install-time __CODING_AGENT__ replacement was not applied."""
+        suffix = Path(original_path).name or "audit.log"
+        return str(Path.home() / ".cache" / "cortex-skill" / suffix)
+
     def _expand_paths(self, config: Dict) -> Dict:
         """Expand ~ and environment variables in file paths."""
         security = config.get("security", {})
@@ -104,6 +109,8 @@ class ConfigManager:
         # Expand audit_log_path
         if "audit_log_path" in security:
             security["audit_log_path"] = os.path.expanduser(security["audit_log_path"])
+            if "__CODING_AGENT__" in security["audit_log_path"]:
+                security["audit_log_path"] = self._safe_placeholder_path(security["audit_log_path"])
 
         # Expand cache_dir
         if "cache_dir" in security:

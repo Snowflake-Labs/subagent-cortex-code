@@ -6,6 +6,7 @@ Handles tool use events and final results.
 """
 
 import json
+import os
 import subprocess
 import sys
 import argparse
@@ -35,6 +36,7 @@ DESTRUCTIVE_SHELL_TOOLS = [
 ]
 
 READ_ONLY_TOOLS = ["Edit", "Write", "Bash"] + DESTRUCTIVE_SHELL_TOOLS
+UNKNOWN_TOOL_SENTINEL = "*"
 
 
 def _redact_error_output(error_text: str) -> str:
@@ -61,7 +63,9 @@ def invert_tools_to_disallowed(allowed_tools: List[str]) -> List[str]:
         allowed = ["Read", "Grep"]
         disallowed = ["Write", "Edit", "Bash", "Glob", ...other tools...]
     """
-    return [tool for tool in KNOWN_TOOLS if tool not in allowed_tools]
+    inverted = [tool for tool in KNOWN_TOOLS if tool not in allowed_tools]
+    inverted.append(UNKNOWN_TOOL_SENTINEL)
+    return inverted
 
 
 def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
@@ -69,7 +73,8 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
                              envelope: str = "RW",
                              approval_mode: str = "auto",
                              allowed_tools: Optional[List[str]] = None,
-                             timeout_seconds: int = 300) -> Dict:
+                             timeout_seconds: int = 300,
+                             deploy_confirmed: bool = False) -> Dict:
     """
     Execute Cortex with streaming JSON output in programmatic mode.
 
@@ -89,6 +94,8 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
     """
     if approval_mode in ["auto", "envelope_only"] and envelope == "NONE":
         raise ValueError("NONE envelope is not allowed in auto or envelope_only approval modes")
+    if approval_mode in ["auto", "envelope_only"] and envelope == "DEPLOY" and not deploy_confirmed:
+        raise ValueError("DEPLOY envelope requires explicit confirmation")
 
     # Build command in print mode. The prompt is delivered with -p; do not add
     # --input-format stream-json here. Cortex treats that flag as JSON stdin
@@ -318,6 +325,20 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
         }
 
 
+def _resolve_output_path(output_file: str) -> Path:
+    """Resolve output path under a safe output directory."""
+    base_dir = Path(os.environ.get("CORTEX_CODE_OUTPUT_DIR", Path.cwd())).expanduser().resolve()
+    output_path = Path(output_file).expanduser()
+    if not output_path.is_absolute():
+        output_path = base_dir / output_path
+    output_path = output_path.resolve()
+    try:
+        output_path.relative_to(base_dir)
+    except ValueError as exc:
+        raise ValueError(f"Output file must be under {base_dir}") from exc
+    return output_path
+
+
 def main():
     """Main execution function."""
     parser = argparse.ArgumentParser(description="Execute Cortex Code headlessly")
@@ -334,6 +355,8 @@ def main():
                        help="Tools that are allowed (for prompt mode)")
     parser.add_argument("--timeout", type=int, default=300,
                        help="Maximum seconds to wait for Cortex execution (default: 300)")
+    parser.add_argument("--deploy-confirmed", action="store_true",
+                       help="Required explicit confirmation for DEPLOY envelope in non-interactive modes")
     parser.add_argument("--output-file", help="Write JSON results to this file instead of stdout")
     parser.add_argument("--stream", action="store_true", help="Stream output (always true)")
     args = parser.parse_args()
@@ -346,13 +369,18 @@ def main():
         envelope=args.envelope,
         approval_mode=args.approval_mode,
         allowed_tools=args.allowed_tools,
-        timeout_seconds=args.timeout
+        timeout_seconds=args.timeout,
+        deploy_confirmed=args.deploy_confirmed
     )
 
     # Output results as JSON
     output = json.dumps(results, indent=2)
     if args.output_file:
-        output_path = Path(args.output_file)
+        try:
+            output_path = _resolve_output_path(args.output_file)
+        except ValueError as exc:
+            print(json.dumps({"error": str(exc)}, indent=2))
+            return 1
         output_path.parent.mkdir(parents=True, exist_ok=True)
         output_path.write_text(output + "\n")
     else:

@@ -11,7 +11,8 @@ def test_load_default_config():
     # Should have default approval mode
     assert config.get("security.approval_mode") == "prompt"
     assert config.get("security.allowed_envelopes") == ["RO", "RW", "RESEARCH"]
-    assert "__CODING_AGENT__" in config.get("security.audit_log_path")
+    assert "__CODING_AGENT__" not in config.get("security.audit_log_path")
+    assert ".cache" in config.get("security.audit_log_path")
 
 
 def test_load_user_config(mock_config_dir, sample_config):
@@ -310,3 +311,10 @@ def test_default_execution_timeout_is_not_five_seconds():
     """Default timeout should be suitable for Snowflake operations."""
     config = ConfigManager()
     assert config.get("security.execution_timeout_seconds") == 300
+
+
+def test_coding_agent_placeholder_falls_back_to_safe_cache_path():
+    config = ConfigManager()
+    audit_path = config.get("security.audit_log_path")
+    assert "__CODING_AGENT__" not in audit_path
+    assert ".cache" in audit_path
