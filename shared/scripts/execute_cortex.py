@@ -71,7 +71,7 @@ def invert_tools_to_disallowed(allowed_tools: List[str]) -> List[str]:
 def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
                              disallowed_tools: Optional[List[str]] = None,
                              envelope: str = "RW",
-                             approval_mode: str = "auto",
+                             approval_mode: str = "prompt",
                              allowed_tools: Optional[List[str]] = None,
                              timeout_seconds: int = 300,
                              deploy_confirmed: bool = False) -> Dict:
@@ -348,9 +348,9 @@ def main():
     parser.add_argument("--envelope", default="RW",
                        choices=["RO", "RW", "RESEARCH", "DEPLOY", "NONE"],
                        help="Security envelope mode (default: RW)")
-    parser.add_argument("--approval-mode", default="auto",
+    parser.add_argument("--approval-mode", default="prompt",
                        choices=["prompt", "auto", "envelope_only"],
-                       help="Approval mode (default: auto)")
+                       help="Approval mode (default: prompt)")
     parser.add_argument("--allowed-tools", nargs="+",
                        help="Tools that are allowed (for prompt mode)")
     parser.add_argument("--timeout", type=int, default=300,

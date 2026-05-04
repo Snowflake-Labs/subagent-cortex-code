@@ -559,3 +559,16 @@ def test_output_file_path_must_stay_under_safe_directory(tmp_path, monkeypatch):
         with patch('sys.argv', ['execute_cortex.py', '--prompt', 'test', '--output-file', str(output_file)]):
             assert main() == 1
         assert not output_file.exists()
+
+
+def test_execute_cortex_defaults_to_prompt_mode():
+    import inspect
+    import execute_cortex
+
+    assert inspect.signature(execute_cortex.execute_cortex_streaming).parameters["approval_mode"].default == "prompt"
+
+
+def test_execute_cortex_cli_default_is_prompt():
+    text = Path("scripts/execute_cortex.py").read_text()
+    assert 'parser.add_argument("--approval-mode", default="prompt"' in text
+    assert 'Approval mode (default: prompt)' in text
