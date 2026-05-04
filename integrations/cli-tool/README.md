@@ -3,7 +3,7 @@
 A standalone CLI that brings Cortex Code's Snowflake expertise to VSCode, Windsurf, terminal, and any environment without a skills-based agent.
 
 > **Claude Code and Cursor** use the skill-based integration via `npx skills add`. This CLI is for other environments.
-> **Codex** installs this tool via `bash integrations/codex/install.sh` (which also writes the right config for Codex's sandbox).
+> **Codex** installs this tool via `bash integrations/codex/install.sh` (which also writes the Codex-specific prompt/RO config).
 
 ## Supported environments
 
@@ -57,7 +57,8 @@ cortex:
 
 See `config.yaml.example` for all options. Keep `approval_mode: "prompt"` for
 interactive use; reserve `auto` or `envelope_only` for explicitly trusted
-automation.
+automation enabled by organization policy. Output files are constrained under
+`CORTEX_CODE_OUTPUT_DIR` or the current working directory.
 
 ## Usage
 
@@ -74,10 +75,11 @@ cortexcode-tool "your question" --connection my-snowflake-connection
 ```
 
 Envelopes:
-- `RO` — read-only (blocks writes)
-- `RW` — read-write (blocks destructive ops)
-- `RESEARCH` — read + web access
-- `DEPLOY` — deployment operations; destructive shell operations remain blocked
+- `RO` — read-only (blocks writes and Bash)
+- `RW` — read-write (blocks Bash and destructive shell patterns)
+- `RESEARCH` — read + web access (blocks writes and Bash)
+- `DEPLOY` — deployment operations; requires explicit confirmation and blocks Bash/destructive shell
+- `NONE` — custom prompt-mode blocklist only; rejected in auto/envelope_only modes
 
 ## Package structure
 

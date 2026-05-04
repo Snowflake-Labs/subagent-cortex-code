@@ -86,6 +86,14 @@ logging:
 
 Audit/log paths use `~/.cache/cortexcode-tool/` so logs stay outside the repository. If Codex reports that network access is required, approve the planned Cortex Code execution in chat and retry the same foreground command with `--yes`.
 
+## Security notes
+
+- `approval_mode` defaults to `prompt`; user config cannot relax this without organization policy.
+- `RO` is the default envelope for Codex reads.
+- `NONE` is rejected in `auto` and `envelope_only` modes.
+- `DEPLOY` requires explicit confirmation and blocks Bash/destructive shell.
+- Output files are constrained under `CORTEX_CODE_OUTPUT_DIR` or the current working directory.
+
 ## Update connection
 
 If you switch Cortex connections:
