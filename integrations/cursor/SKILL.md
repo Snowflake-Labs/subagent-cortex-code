@@ -44,8 +44,7 @@ python3 scripts/execute_cortex.py \
 
 # Current Question
 [USER'S QUESTION]" \
-  --envelope "RW" \
-  --approval-mode "auto"
+  --envelope "RO"
 ```
 
 ### Example with Context
@@ -59,8 +58,7 @@ User previously identified databases with stock data: DB_STOCK, FINANCE__ECONOMI
 
 # Current Question
 Show me the schema for the main table in DB_STOCK" \
-  --envelope "RW" \
-  --approval-mode "auto"
+  --envelope "RO"
 ```
 
 ### Example without Context
@@ -70,8 +68,7 @@ For standalone questions:
 ```bash
 python3 scripts/execute_cortex.py \
   --prompt "How many databases do I have in Snowflake?" \
-  --envelope "RW" \
-  --approval-mode "auto"
+  --envelope "RO"
 ```
 
 ## How It Works
@@ -84,6 +81,6 @@ python3 scripts/execute_cortex.py \
 
 ## Configuration
 
-- **Approval mode**: auto (no prompts, with audit logging)
-- **Security envelope**: RW (Read-Write operations)
+- **Approval mode**: prompt by default; request user approval before execution
+- **Security envelope**: RO for reads; RW only for approved writes
 - **Connection**: Uses default Snowflake connection from cortex CLI

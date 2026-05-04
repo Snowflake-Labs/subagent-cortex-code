@@ -8,6 +8,8 @@ import json
 import sys
 import argparse
 from pathlib import Path
+from security.cache_manager import CacheManager
+from security.config_manager import ConfigManager
 
 
 # Tool prediction mappings with weighted patterns
@@ -39,14 +41,15 @@ BASE_SNOWFLAKE_TOOLS = ["snowflake_sql_execute", "bash", "read"]
 
 
 def load_capabilities():
-    """Load cached Cortex capabilities."""
-    cache_path = Path("/tmp/cortex-capabilities.json")
-
-    if not cache_path.exists():
+    """Load cached Cortex capabilities through CacheManager."""
+    try:
+        config_manager = ConfigManager()
+        cache_dir = Path(config_manager.get("security.cache_dir")).expanduser()
+        cache_manager = CacheManager(cache_dir)
+        return cache_manager.read("cortex-capabilities") or {}
+    except Exception as exc:
+        print(f"Warning: Failed to load Cortex capabilities from cache: {exc}", file=sys.stderr)
         return {}
-
-    with open(cache_path, 'r') as f:
-        return json.load(f)
 
 
 def predict_tools(prompt, envelope=None):
@@ -137,7 +140,6 @@ def main():
     """Main tool prediction function."""
     parser = argparse.ArgumentParser(description="Predict required Cortex tools")
     parser.add_argument("--prompt", required=True, help="User prompt to analyze")
-    parser.add_argument("--capabilities", help="Path to capabilities JSON", default="/tmp/cortex-capabilities.json")
     args = parser.parse_args()
 
     # Load capabilities

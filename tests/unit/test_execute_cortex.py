@@ -452,3 +452,28 @@ class TestBackwardCompatibility:
         # RO envelope behavior should be unchanged
         assert "Write" in disallowed_tools
         assert "Edit" in disallowed_tools
+
+class TestIssue13EnvelopeHardening:
+    """Regression tests for issue #13 envelope hardening."""
+
+    @patch('execute_cortex.subprocess.Popen')
+    def test_none_envelope_rejected_in_auto_mode(self, mock_popen):
+        """NONE envelope must not disable all restrictions in auto mode."""
+        with pytest.raises(ValueError, match="NONE envelope"):
+            execute_cortex_streaming(
+                prompt="Test prompt",
+                approval_mode="auto",
+                envelope="NONE",
+            )
+        mock_popen.assert_not_called()
+
+    @patch('execute_cortex.subprocess.Popen')
+    def test_none_envelope_rejected_in_envelope_only_mode(self, mock_popen):
+        """NONE envelope must not disable all restrictions in envelope_only mode."""
+        with pytest.raises(ValueError, match="NONE envelope"):
+            execute_cortex_streaming(
+                prompt="Test prompt",
+                approval_mode="envelope_only",
+                envelope="NONE",
+            )
+        mock_popen.assert_not_called()

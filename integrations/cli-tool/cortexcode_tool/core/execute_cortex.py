@@ -74,6 +74,9 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
     Returns:
         Dictionary with execution results
     """
+    if approval_mode in ["auto", "envelope_only"] and envelope == "NONE":
+        raise ValueError("NONE envelope is not allowed in auto or envelope_only approval modes")
+
     # Build command in print mode. The prompt is delivered with -p; do not add
     # --input-format stream-json here. Cortex treats that flag as JSON stdin
     # input mode, so combining it with -p and closed stdin can emit only the

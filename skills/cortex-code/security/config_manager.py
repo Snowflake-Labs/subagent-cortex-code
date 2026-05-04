@@ -29,6 +29,7 @@ class ConfigManager:
             "cache_permissions": "0600",
             "allowed_envelopes": ["RO", "RW", "RESEARCH"],
             "deploy_envelope_confirmation": True,
+            "execution_timeout_seconds": 300,
             "credential_file_allowlist": [
                 "~/.ssh/*",
                 "~/.snowflake/*",
@@ -132,12 +133,15 @@ class ConfigManager:
             except OSError as e:
                 print(f"Warning: Failed to read user config {config_path}: {e}", file=sys.stderr)
 
+        org_policy_loaded = False
+
         # Load org policy if exists
         if org_policy_path and org_policy_path.exists():
             try:
                 with open(org_policy_path, 'r') as f:
                     try:
                         org_policy = yaml.safe_load(f) or {}
+                        org_policy_loaded = True
 
                         # If override flag set, org policy wins completely
                         if org_policy.get("security", {}).get("override_user_config"):
@@ -151,6 +155,13 @@ class ConfigManager:
             except OSError as e:
                 print(f"Warning: Failed to read org policy {org_policy_path}: {e}", file=sys.stderr)
 
+        # Validate before applying floors so invalid user config is still rejected.
+        self._validate_config(config)
+
+        # User config must not relax the security floor unless an org policy is present.
+        if not org_policy_loaded:
+            config = self._enforce_security_floor(config)
+
         # Validate configuration
         self._validate_config(config)
 
@@ -158,6 +169,24 @@ class ConfigManager:
         config = self._expand_paths(config)
 
         return config
+
+    def _enforce_security_floor(self, config: Dict) -> Dict:
+        """Prevent user config from relaxing defaults without org policy."""
+        result = copy.deepcopy(config)
+        security = result.setdefault("security", {})
+        default_security = self.DEFAULT_CONFIG["security"]
+
+        if security.get("approval_mode") != default_security["approval_mode"]:
+            security["approval_mode"] = default_security["approval_mode"]
+
+        default_envelopes = set(default_security["allowed_envelopes"])
+        requested_envelopes = security.get("allowed_envelopes", default_security["allowed_envelopes"])
+        security["allowed_envelopes"] = [
+            envelope for envelope in requested_envelopes
+            if envelope in default_envelopes
+        ]
+
+        return result
 
     def _merge_config(self, base: Dict, override: Dict) -> Dict:
         """Deep merge override into base."""

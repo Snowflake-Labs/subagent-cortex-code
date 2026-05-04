@@ -101,7 +101,7 @@ $PYTHON scripts/discover_cortex.py
 This script:
 1. Runs `cortex skill list` to enumerate all available Cortex skills
 2. Reads each skill's SKILL.md frontmatter and trigger patterns
-3. Caches capabilities in `/tmp/cortex-capabilities.json` for this session
+3. Caches capabilities with `CacheManager` in the configured cache directory
 4. Returns structured data about what Cortex can handle
 
 Expected output: JSON mapping of skill names to their trigger patterns and capabilities.
@@ -411,7 +411,7 @@ security:
 **Solution**:
 1. Check which envelope is being used (RO/RW/RESEARCH/DEPLOY)
 2. If operation is safe, switch to a less restrictive envelope
-3. Or use envelope="NONE" with custom --disallowed-tools list
+3. Avoid `NONE` in auto/envelope_only modes; use a named envelope plus explicit custom blocklist if needed
 
 ### Error: Audit log not created
 **Symptom**: No audit.log despite auto/envelope_only mode

@@ -72,9 +72,8 @@ security:
         assert result["config"]["approval_mode"] == "prompt"
         assert "approval_handler" in result
 
-    def test_security_wrapper_auto_mode(self, temp_dir):
-        """Test wrapper with auto approval mode."""
-        # Create config with auto mode
+    def test_security_wrapper_auto_mode_requires_org_policy(self, temp_dir):
+        """User config alone cannot enable auto approval mode."""
         config_path = temp_dir / "config.yaml"
         config_path.write_text("""
 security:
@@ -90,7 +89,7 @@ security:
         )
 
         assert result["status"] == "initialized"
-        assert result["config"]["approval_mode"] == "auto"
+        assert result["config"]["approval_mode"] == "prompt"
 
 
 class TestSecurityWrapperSanitization:
@@ -375,11 +374,23 @@ security:
   cache_dir: {}/.cache
 """.format(temp_dir, temp_dir))
 
-        result = execute_with_security(
-            prompt="Query Snowflake for customer data",
-            config_path=str(config_path),
-            envelope={"allowed_tools": ["SELECT", "INSERT"]}
-        )
+        org_policy_path = temp_dir / "policy.yaml"
+        org_policy_path.write_text("security:\n  approval_mode: auto\n")
+
+        with patch("scripts.security_wrapper.execute_cortex_streaming") as mock_execute:
+            mock_execute.return_value = {
+                "session_id": "session-1",
+                "events": [],
+                "permission_requests": [],
+                "final_result": "ok",
+                "error": None,
+            }
+            result = execute_with_security(
+                prompt="Query Snowflake for customer data",
+                config_path=str(config_path),
+                org_policy_path=str(org_policy_path),
+                envelope={"allowed_tools": ["SELECT", "INSERT"]}
+            )
 
         # Should auto-approve and execute
         assert result["status"] == "executed"
@@ -402,11 +413,23 @@ security:
   cache_dir: {}/.cache
 """.format(temp_dir, temp_dir))
 
-        result = execute_with_security(
-            prompt="Run Snowflake query",
-            config_path=str(config_path),
-            envelope={"allowed_tools": ["SELECT"]}
-        )
+        org_policy_path = temp_dir / "policy.yaml"
+        org_policy_path.write_text("security:\n  approval_mode: envelope_only\n")
+
+        with patch("scripts.security_wrapper.execute_cortex_streaming") as mock_execute:
+            mock_execute.return_value = {
+                "session_id": "session-1",
+                "events": [],
+                "permission_requests": [],
+                "final_result": "ok",
+                "error": None,
+            }
+            result = execute_with_security(
+                prompt="Run Snowflake query",
+                config_path=str(config_path),
+                org_policy_path=str(org_policy_path),
+                envelope={"allowed_tools": ["SELECT"]}
+            )
 
         # Should execute with envelope enforcement only
         assert result["status"] == "executed"
@@ -425,15 +448,27 @@ security:
   cache_dir: {}/.cache
 """.format(audit_log_path, temp_dir))
 
+        org_policy_path = temp_dir / "policy.yaml"
+        org_policy_path.write_text("security:\n  approval_mode: auto\n")
+
         # Execute multiple times with Snowflake-specific prompts
-        for i in range(3):
-            result = execute_with_security(
-                prompt=f"Query Snowflake database for data {i}",
-                config_path=str(config_path),
-                envelope={"allowed_tools": ["SELECT"]}
-            )
-            assert result["status"] == "executed"
-            assert "audit_id" in result
+        with patch("scripts.security_wrapper.execute_cortex_streaming") as mock_execute:
+            mock_execute.return_value = {
+                "session_id": "session-1",
+                "events": [],
+                "permission_requests": [],
+                "final_result": "ok",
+                "error": None,
+            }
+            for i in range(3):
+                result = execute_with_security(
+                    prompt=f"Query Snowflake database for data {i}",
+                    config_path=str(config_path),
+                    org_policy_path=str(org_policy_path),
+                    envelope={"allowed_tools": ["SELECT"]}
+                )
+                assert result["status"] == "executed"
+                assert "audit_id" in result
 
         # Verify audit log has entries
         assert audit_log_path.exists()
@@ -454,11 +489,23 @@ security:
 
         # For now, just verify execution works
         # Caching will be implemented in future phase
-        result = execute_with_security(
-            prompt="Query Snowflake",
-            config_path=str(config_path),
-            envelope={"allowed_tools": ["SELECT"]}
-        )
+        org_policy_path = temp_dir / "policy.yaml"
+        org_policy_path.write_text("security:\n  approval_mode: auto\n")
+
+        with patch("scripts.security_wrapper.execute_cortex_streaming") as mock_execute:
+            mock_execute.return_value = {
+                "session_id": "session-1",
+                "events": [],
+                "permission_requests": [],
+                "final_result": "ok",
+                "error": None,
+            }
+            result = execute_with_security(
+                prompt="Query Snowflake",
+                config_path=str(config_path),
+                org_policy_path=str(org_policy_path),
+                envelope={"allowed_tools": ["SELECT"]}
+            )
 
         assert result["status"] == "executed"
         # TODO: Add cache verification when caching is implemented
@@ -487,9 +534,13 @@ security:
                 "error": None,
             }
 
+            org_policy_path = temp_dir / "policy.yaml"
+            org_policy_path.write_text("security:\n  approval_mode: auto\n")
+
             result = execute_with_security(
                 prompt="Query Snowflake for john@example.com",
                 config_path=str(config_path),
+                org_policy_path=str(org_policy_path),
             )
 
         assert result["status"] == "executed"
@@ -516,11 +567,37 @@ security:
                 "error": None,
             }
             with patch("scripts.security_wrapper.AuditLogger.log_execution", side_effect=OSError("disk full")):
+                org_policy_path = temp_dir / "policy.yaml"
+                org_policy_path.write_text("security:\n  approval_mode: auto\n")
+
                 result = execute_with_security(
                     prompt="Query Snowflake databases",
                     config_path=str(config_path),
+                    org_policy_path=str(org_policy_path),
                 )
 
         assert result["status"] == "executed"
         assert result["audit_id"] is None
         assert "disk full" in result["audit_error"]
+
+
+def test_dry_run_does_not_return_original_sensitive_prompt(temp_dir):
+    """Dry-run output should not leak the unsanitized prompt."""
+    config_path = temp_dir / "config.yaml"
+    config_path.write_text(f"""
+security:
+  approval_mode: prompt
+  audit_log_path: {temp_dir}/audit.log
+  cache_dir: {temp_dir}/.cache
+""")
+
+    result = execute_with_security(
+        prompt="Query customer john@example.com",
+        config_path=str(config_path),
+        dry_run=True,
+    )
+
+    assert result["status"] == "initialized"
+    assert "original_prompt" not in result
+    assert "john@example.com" not in str(result)
+    assert "<EMAIL>" in result["sanitized_prompt"]

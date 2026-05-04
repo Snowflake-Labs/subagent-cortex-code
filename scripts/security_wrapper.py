@@ -13,7 +13,9 @@ This is the main entry point for secure Cortex execution.
 """
 
 import argparse
+import fnmatch
 import json
+import re
 import sys
 import os
 from pathlib import Path
@@ -32,6 +34,9 @@ from security.approval_handler import ApprovalHandler
 sys.path.insert(0, str(Path(__file__).parent))
 from route_request import analyze_with_llm_logic, load_cortex_capabilities
 from execute_cortex import execute_cortex_streaming
+
+
+PATH_TOKEN_PATTERN = re.compile(r'(?<![\w.-])(?:~/?|/|\./|\.\./|[A-Za-z0-9_.-]+/)[A-Za-z0-9_./$~:-]+|(?<![\w.-])(?:\.ssh|\.aws|\.snowflake|\.env(?:\.[\w-]+)?|credentials\.(?:json|ya?ml)|[A-Za-z0-9_.-]+_key\.(?:p8|pem))(?![\w.-])', re.IGNORECASE)
 
 
 def execute_with_security(
@@ -103,16 +108,33 @@ def execute_with_security(
 
     # Step 4: Check credential file allowlist (on original prompt)
     credential_allowlist = config_manager.get("security.credential_file_allowlist")
+    prompt_tokens = PATH_TOKEN_PATTERN.findall(prompt)
+    normalized_tokens = []
+    for token in prompt_tokens:
+        normalized_tokens.append(token)
+        if token.startswith("~"):
+            normalized_tokens.append(token.replace("~", str(Path.home()), 1))
     for pattern in credential_allowlist:
-        # Simple pattern matching - strip wildcards and check for contains
-        pattern_check = pattern.replace('~/', '').replace('**/', '').replace('*', '')
-        if pattern_check and pattern_check in prompt.lower():
-            return {
-                "status": "blocked",
-                "reason": "Prompt contains credential file path from allowlist",
-                "pattern_matched": pattern,
-                "message": "Cannot route prompts containing credential file paths for security"
-            }
+        expanded_pattern = str(Path(pattern).expanduser())
+        candidate_patterns = [pattern, expanded_pattern]
+        if pattern.startswith("~/**/"):
+            candidate_patterns.append("**/" + pattern.split("~/**/", 1)[1])
+        for token in normalized_tokens:
+            token_lower = token.lower()
+            for candidate_pattern in candidate_patterns:
+                pattern_lower = candidate_pattern.lower()
+                pattern_dir = pattern_lower.split("*")[0].rstrip("/")
+                if (
+                    fnmatch.fnmatch(token_lower, pattern_lower)
+                    or fnmatch.fnmatch(f"*/{token_lower}", pattern_lower)
+                    or (token_lower in {".ssh", ".aws", ".snowflake"} and pattern_dir.endswith(token_lower))
+                ):
+                    return {
+                        "status": "blocked",
+                        "reason": "Prompt contains credential file path from allowlist",
+                        "pattern_matched": pattern,
+                        "message": "Cannot route prompts containing credential file paths for security"
+                    }
 
     # Step 5: Determine routing (cortex vs claude) on sanitized prompt
     capabilities = load_cortex_capabilities()
@@ -128,7 +150,6 @@ def execute_with_security(
         return {
             "status": "initialized",
             "dry_run": True,
-            "prompt": prompt,
             "sanitized_prompt": sanitized_prompt,
             "routing": {
                 "decision": route_decision,
