@@ -109,7 +109,8 @@ def execute_query(
     config: ConfigManager,
     cache: CacheManager,
     logger_instance: Optional[AuditLogger],
-    approved: bool = False
+    approved: bool = False,
+    envelope: Optional[str] = None,
 ) -> int:
     """Execute a Snowflake query via Cortex Code.
 
@@ -151,6 +152,11 @@ def execute_query(
     # file for ~45s and gives up before Cortex returns the actual answer.
     print("Querying Snowflake via Cortex Code...", flush=True)
 
+    envelope = envelope or config.get("cortex.default_envelope", "RW")
+    if envelope == "NONE":
+        print("NONE envelope is not allowed for cortexcode-tool execution", file=sys.stderr)
+        return 1
+
     # Handle approval if needed
     approval_mode = config.get("security.approval_mode", "prompt")
 
@@ -160,8 +166,6 @@ def execute_query(
         # Show approval prompt
         handler = ApprovalHandler()
         predicted_tools = handler.predict_tools(query)
-        envelope = config.get("cortex.default_envelope", "RW")
-
         result = handler.request_approval(
             tools=predicted_tools,
             envelope=envelope,
@@ -174,7 +178,6 @@ def execute_query(
 
     # Execute via Cortex
     connection = config.get("cortex.connection_name", "default")
-    envelope = config.get("cortex.default_envelope", "RW")
 
     results = execute_cortex_streaming(
         prompt=query,
@@ -297,7 +300,12 @@ def main(argv: Optional[List[str]] = None) -> int:
                     log_path=config.get("security.audit_log_path")
                 )
 
-            return execute_query(args.query, config, cache, audit_logger, approved=args.yes)
+            envelope = args.envelope or config.get("cortex.default_envelope", "RW")
+            if envelope == "NONE":
+                print("NONE envelope is not allowed for cortexcode-tool execution", file=sys.stderr)
+                return 1
+
+            return execute_query(args.query, config, cache, audit_logger, approved=args.yes, envelope=envelope)
 
         else:
             # No command provided

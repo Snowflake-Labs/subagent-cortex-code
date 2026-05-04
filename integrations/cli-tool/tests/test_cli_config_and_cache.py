@@ -3,6 +3,7 @@
 import os
 import sys
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 import pytest
 import yaml
@@ -10,7 +11,7 @@ import yaml
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from cortexcode_tool.security.cache_manager import CacheManager
-from cortexcode_tool.main import parse_args, should_request_codex_escalation
+from cortexcode_tool.main import main, parse_args, should_request_codex_escalation
 
 
 def test_cli_example_config_defaults_to_prompt():
@@ -69,3 +70,42 @@ def test_codex_sandbox_guard_allows_yes_after_host_approval(monkeypatch):
     monkeypatch.setenv("CODEX_SANDBOX_NETWORK_DISABLED", "1")
 
     assert should_request_codex_escalation(approved=True) is False
+
+
+@patch("cortexcode_tool.main.execute_query")
+@patch("cortexcode_tool.main.CacheManager")
+@patch("cortexcode_tool.main.ConfigManager")
+def test_cli_honors_explicit_envelope_argument(mock_config_manager, mock_cache_manager, mock_execute_query):
+    config = MagicMock()
+    config.get.side_effect = lambda key, default=None: {
+        "security.cache_dir": None,
+        "security.approval_mode": "prompt",
+        "cortex.default_envelope": "RW",
+    }.get(key, default)
+    mock_config_manager.return_value = config
+    mock_cache_manager.return_value = MagicMock()
+    mock_execute_query.return_value = 0
+
+    assert main(["--envelope", "RO", "--yes", "How many databases?"]) == 0
+
+    mock_execute_query.assert_called_once()
+    assert mock_execute_query.call_args.kwargs["envelope"] == "RO"
+
+
+@patch("cortexcode_tool.main.execute_query")
+@patch("cortexcode_tool.main.CacheManager")
+@patch("cortexcode_tool.main.ConfigManager")
+def test_cli_rejects_none_envelope_before_execution(mock_config_manager, mock_cache_manager, mock_execute_query, capsys):
+    config = MagicMock()
+    config.get.side_effect = lambda key, default=None: {
+        "security.cache_dir": None,
+        "security.approval_mode": "prompt",
+        "cortex.default_envelope": "RW",
+    }.get(key, default)
+    mock_config_manager.return_value = config
+    mock_cache_manager.return_value = MagicMock()
+
+    assert main(["--envelope", "NONE", "--yes", "How many databases?"]) == 1
+
+    mock_execute_query.assert_not_called()
+    assert "NONE envelope is not allowed" in capsys.readouterr().err
