@@ -646,7 +646,7 @@ security:
             prompt="Query Snowflake database",
             config_path=str(config_path),
             org_policy_path=str(org_policy_path),
-            envelope={"allowed_tools": ["SELECT"]},
+            envelope={"type": "RO", "allowed_tools": ["SELECT"]},
             mock_user_approval="approve"
         )
 
@@ -680,6 +680,7 @@ security:
             prompt="Test org policy",
             config_path=str(config_path),
             org_policy_path=str(org_policy_path),
+            envelope={"type": "RO"},
             dry_run=True
         )
 

@@ -140,7 +140,7 @@ class ConfigManager:
             except OSError as e:
                 print(f"Warning: Failed to read user config {config_path}: {e}", file=sys.stderr)
 
-        org_policy_loaded = False
+        org_policy_security = {}
 
         # Load org policy if exists
         if org_policy_path and org_policy_path.exists():
@@ -148,7 +148,7 @@ class ConfigManager:
                 with open(org_policy_path, 'r') as f:
                     try:
                         org_policy = yaml.safe_load(f) or {}
-                        org_policy_loaded = True
+                        org_policy_security = org_policy.get("security", {}) or {}
 
                         # If override flag set, org policy wins completely
                         if org_policy.get("security", {}).get("override_user_config"):
@@ -165,9 +165,9 @@ class ConfigManager:
         # Validate before applying floors so invalid user config is still rejected.
         self._validate_config(config)
 
-        # User config must not relax the security floor unless an org policy is present.
-        if not org_policy_loaded:
-            config = self._enforce_security_floor(config)
+        # User config must not relax the security floor unless org policy
+        # explicitly authorizes the relaxed field/value.
+        config = self._enforce_security_floor(config, org_policy_security)
 
         # Validate configuration
         self._validate_config(config)
@@ -177,20 +177,26 @@ class ConfigManager:
 
         return config
 
-    def _enforce_security_floor(self, config: Dict) -> Dict:
-        """Prevent user config from relaxing defaults without org policy."""
+    def _enforce_security_floor(self, config: Dict, org_policy_security: Optional[Dict] = None) -> Dict:
+        """Prevent user config from relaxing defaults without explicit org policy."""
         result = copy.deepcopy(config)
         security = result.setdefault("security", {})
         default_security = self.DEFAULT_CONFIG["security"]
+        org_policy_security = org_policy_security or {}
 
-        if security.get("approval_mode") != default_security["approval_mode"]:
+        if (
+            security.get("approval_mode") != default_security["approval_mode"]
+            and "approval_mode" not in org_policy_security
+        ):
             security["approval_mode"] = default_security["approval_mode"]
 
         default_envelopes = set(default_security["allowed_envelopes"])
+        explicit_org_envelopes = set(org_policy_security.get("allowed_envelopes", []))
+        envelope_floor = default_envelopes | explicit_org_envelopes
         requested_envelopes = security.get("allowed_envelopes", default_security["allowed_envelopes"])
         security["allowed_envelopes"] = [
             envelope for envelope in requested_envelopes
-            if envelope in default_envelopes
+            if envelope in envelope_floor
         ]
 
         return result

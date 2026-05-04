@@ -122,6 +122,20 @@ def execute_with_security(
                 "sanitized_prompt": sanitized_prompt
             }
 
+    envelope_mode = "RW"
+    if isinstance(envelope, dict):
+        envelope_mode = envelope.get("mode") or envelope.get("type") or "RW"
+    elif isinstance(envelope, str):
+        envelope_mode = envelope
+
+    if envelope_mode not in allowed_envelopes:
+        return {
+            "status": "blocked",
+            "reason": f"Envelope {envelope_mode} is not allowed by configuration",
+            "allowed_envelopes": allowed_envelopes,
+            "requested_envelope": envelope_mode,
+        }
+
     # Step 4: Check credential file allowlist (on original prompt)
     credential_allowlist = config_manager.get("security.credential_file_allowlist")
     prompt_tokens = PATH_TOKEN_PATTERN.findall(prompt)
@@ -152,7 +166,7 @@ def execute_with_security(
                         "message": "Cannot route prompts containing credential file paths for security"
                     }
 
-    # Step 5: Determine routing (cortex vs codex) on sanitized prompt
+    # Step 5: Determine routing (cortex vs claude) on sanitized prompt
     capabilities = load_cortex_capabilities()
     route_decision, route_confidence = analyze_with_llm_logic(sanitized_prompt, capabilities)
 
@@ -186,9 +200,8 @@ def execute_with_security(
         }
 
     # Step 8: Full execution flow
-    # Route to the host coding agent for non-Snowflake requests. Shared code may
-    # still return the installation placeholder before agent-specific sed runs.
-    if route_decision in ["__CODING_AGENT__", "codex"]:
+    # Route to Coding Agent for non-Snowflake requests
+    if route_decision == "__CODING_AGENT__":
         return {
             "status": "routed_to_coding_agent",
             "message": "Request routed to coding agent for local handling",
@@ -263,12 +276,6 @@ def execute_with_security(
         allowed_tools = None  # None means rely on envelope only
 
     # Step 11: Execute with Cortex using the sanitized prompt.
-    envelope_mode = "RW"
-    if isinstance(envelope, dict):
-        envelope_mode = envelope.get("mode") or envelope.get("type") or "RW"
-    elif isinstance(envelope, str):
-        envelope_mode = envelope
-
     if mock_user_approval:
         execution_result = {
             "status": "success",
@@ -361,9 +368,12 @@ def main():
     if args.envelope:
         try:
             envelope = json.loads(args.envelope)
-        except json.JSONDecodeError:
-            # Accept plain envelope type strings: "RO", "RW", "RESEARCH", "DEPLOY", "NONE"
-            envelope = {"type": args.envelope}
+        except json.JSONDecodeError as e:
+            print(json.dumps({
+                "status": "error",
+                "message": f"Invalid envelope JSON: {e}"
+            }))
+            sys.exit(1)
 
     # Execute with security
     try:

@@ -108,7 +108,7 @@ def test_empty_config_file(mock_config_dir):
 
 
 def test_org_policy_merge_without_override(mock_config_dir, temp_dir):
-    """Verify org policy merges with user config when override_user_config is False."""
+    """Org policy merges without authorizing unrelated user relaxations."""
     import yaml
 
     # User config
@@ -128,8 +128,8 @@ security:
 
     config = ConfigManager(config_path=user_config_path, org_policy_path=org_policy_path)
 
-    # Both user config and org policy values should be present
-    assert config.get("security.approval_mode") == "auto"  # From user config
+    # Non-security-floor user config survives, but approval relaxation must be explicit in org policy.
+    assert config.get("security.approval_mode") == "prompt"
     assert config.get("security.allowed_envelopes") == ["RO"]  # From org policy
     assert config.get("security.max_concurrent_executions") == 5  # From user config
 
@@ -305,6 +305,45 @@ security:
 
     assert config.get("security.approval_mode") == "auto"
     assert config.get("security.allowed_envelopes") == ["RO", "RW", "RESEARCH", "DEPLOY"]
+
+
+def test_unrelated_org_policy_does_not_authorize_user_approval_relaxation(mock_config_dir, temp_dir):
+    """Org policy must explicitly set approval_mode to relax prompt default."""
+    config_file = mock_config_dir / "config.yaml"
+    config_file.write_text("""
+security:
+  approval_mode: auto
+  allowed_envelopes: ["RO", "RW", "RESEARCH", "DEPLOY", "NONE"]
+""")
+    org_policy_file = temp_dir / "policy.yaml"
+    org_policy_file.write_text("""
+security:
+  tool_prediction_confidence_threshold: 0.9
+""")
+
+    config = ConfigManager(config_path=config_file, org_policy_path=org_policy_file)
+
+    assert config.get("security.approval_mode") == "prompt"
+    assert config.get("security.allowed_envelopes") == ["RO", "RW", "RESEARCH"]
+    assert config.get("security.tool_prediction_confidence_threshold") == 0.9
+
+
+def test_org_policy_must_explicitly_authorize_envelope_expansion(mock_config_dir, temp_dir):
+    """User config cannot expand envelopes unless org policy includes those envelopes."""
+    config_file = mock_config_dir / "config.yaml"
+    config_file.write_text("""
+security:
+  allowed_envelopes: ["RO", "RW", "RESEARCH", "DEPLOY"]
+""")
+    org_policy_file = temp_dir / "policy.yaml"
+    org_policy_file.write_text("""
+security:
+  approval_mode: prompt
+""")
+
+    config = ConfigManager(config_path=config_file, org_policy_path=org_policy_file)
+
+    assert config.get("security.allowed_envelopes") == ["RO", "RW", "RESEARCH"]
 
 
 def test_default_execution_timeout_is_not_five_seconds():

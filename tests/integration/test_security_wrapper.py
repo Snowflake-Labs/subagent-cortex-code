@@ -91,6 +91,27 @@ security:
         assert result["status"] == "initialized"
         assert result["config"]["approval_mode"] == "prompt"
 
+    def test_security_wrapper_blocks_disallowed_envelope(self, temp_dir):
+        """Configured allowed_envelopes should gate execution before approval/Cortex."""
+        config_path = temp_dir / "config.yaml"
+        config_path.write_text("""
+security:
+  approval_mode: prompt
+  audit_log_path: {}/audit.log
+  cache_dir: {}/.cache
+  allowed_envelopes: ["RO"]
+""".format(temp_dir, temp_dir))
+
+        result = execute_with_security(
+            prompt="How many databases do I have?",
+            config_path=str(config_path),
+            envelope={"type": "DEPLOY"},
+            mock_user_approval="approve"
+        )
+
+        assert result["status"] == "blocked"
+        assert "not allowed" in result["reason"]
+
 
 class TestSecurityWrapperSanitization:
     """Test security wrapper prompt sanitization."""
@@ -173,6 +194,7 @@ security:
             prompt="Test org policy",
             config_path=str(config_path),
             org_policy_path=str(org_policy_path),
+            envelope={"type": "RO"},
             dry_run=True
         )
 

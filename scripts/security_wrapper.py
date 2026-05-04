@@ -122,6 +122,20 @@ def execute_with_security(
                 "sanitized_prompt": sanitized_prompt
             }
 
+    envelope_mode = "RW"
+    if isinstance(envelope, dict):
+        envelope_mode = envelope.get("mode") or envelope.get("type") or "RW"
+    elif isinstance(envelope, str):
+        envelope_mode = envelope
+
+    if envelope_mode not in allowed_envelopes:
+        return {
+            "status": "blocked",
+            "reason": f"Envelope {envelope_mode} is not allowed by configuration",
+            "allowed_envelopes": allowed_envelopes,
+            "requested_envelope": envelope_mode,
+        }
+
     # Step 4: Check credential file allowlist (on original prompt)
     credential_allowlist = config_manager.get("security.credential_file_allowlist")
     prompt_tokens = PATH_TOKEN_PATTERN.findall(prompt)
@@ -262,12 +276,6 @@ def execute_with_security(
         allowed_tools = None  # None means rely on envelope only
 
     # Step 11: Execute with Cortex using the sanitized prompt.
-    envelope_mode = "RW"
-    if isinstance(envelope, dict):
-        envelope_mode = envelope.get("mode") or envelope.get("type") or "RW"
-    elif isinstance(envelope, str):
-        envelope_mode = envelope
-
     if mock_user_approval:
         execution_result = {
             "status": "success",
