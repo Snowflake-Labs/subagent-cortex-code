@@ -187,7 +187,6 @@ security:
 ### Environment Variables
 
 - `CORTEX_SKILL_CONFIG`: Override default config path
-- `CORTEX_SKILL_ORG_POLICY`: Override default org policy path
 
 ---
 

@@ -36,6 +36,15 @@ from route_request import analyze_with_llm_logic, load_cortex_capabilities
 from execute_cortex import execute_cortex_streaming
 
 
+def _log_audit_event(audit_logger, **kwargs):
+    """Best-effort audit logging helper."""
+    try:
+        return audit_logger.log_execution(**kwargs), None
+    except Exception as exc:
+        print(f"Warning: failed to write audit log: {exc}", file=sys.stderr)
+        return None, str(exc)
+
+
 PATH_TOKEN_PATTERN = re.compile(r'(?<![\w.-])(?:~/?|/|\./|\.\./|[A-Za-z0-9_.-]+/)[A-Za-z0-9_./$~:-]+|(?<![\w.-])(?:\.ssh|\.aws|\.snowflake|\.env(?:\.[\w-]+)?|credentials\.(?:json|ya?ml)|[A-Za-z0-9_.-]+_key\.(?:p8|pem))(?![\w.-])', re.IGNORECASE)
 
 
@@ -105,6 +114,13 @@ def execute_with_security(
     sanitized_prompt = prompt
     if sanitize_enabled:
         sanitized_prompt = prompt_sanitizer.sanitize(prompt)
+        if sanitized_prompt == "[POTENTIAL INJECTION DETECTED - REMOVED]":
+            return {
+                "status": "blocked",
+                "reason": "Prompt injection attempt detected",
+                "message": "Cannot route prompts containing prompt injection attempts",
+                "sanitized_prompt": sanitized_prompt
+            }
 
     # Step 4: Check credential file allowlist (on original prompt)
     credential_allowlist = config_manager.get("security.credential_file_allowlist")
@@ -208,14 +224,34 @@ def execute_with_security(
                 prediction.get("reasoning", "")
             )
 
-            # Return prompt for user - actual approval happens externally
-            return {
+            approval_result = {
                 "status": "awaiting_approval",
                 "approval_prompt": approval_prompt,
                 "predicted_tools": predicted_tools,
                 "confidence": tool_confidence,
                 "envelope": envelope
             }
+            audit_id, audit_error = _log_audit_event(
+                audit_logger,
+                event_type="cortex_approval_requested",
+                user=os.environ.get("USER", "unknown"),
+                routing={"decision": route_decision, "confidence": route_confidence},
+                execution={
+                    "envelope": envelope,
+                    "approval_mode": approval_mode,
+                    "auto_approved": False,
+                    "predicted_tools": predicted_tools,
+                    "allowed_tools": []
+                },
+                result={"status": "awaiting_approval"},
+                security={
+                    "sanitized": sanitize_enabled,
+                    "pii_removed": sanitize_enabled and prompt != sanitized_prompt
+                }
+            )
+            approval_result["audit_id"] = audit_id
+            approval_result["audit_error"] = audit_error
+            return approval_result
 
     elif approval_mode == "auto":
         # Auto mode: auto-approve all tools
@@ -250,10 +286,8 @@ def execute_with_security(
         execution_result.setdefault("tools_used", allowed_tools or ["envelope-controlled"])
 
     # Step 12: Audit logging
-    audit_id = None
-    audit_error = None
-    try:
-        audit_id = audit_logger.log_execution(
+    audit_id, audit_error = _log_audit_event(
+        audit_logger,
         event_type="cortex_execution",
         user=os.environ.get("USER", "unknown"),
         routing={"decision": route_decision, "confidence": route_confidence},
@@ -265,14 +299,11 @@ def execute_with_security(
             "allowed_tools": allowed_tools
         },
         result=execution_result,
-            security={
-                "sanitized": sanitize_enabled,
-                "pii_removed": sanitize_enabled and prompt != sanitized_prompt
-            }
-        )
-    except Exception as exc:
-        audit_error = str(exc)
-        print(f"Warning: failed to write audit log: {audit_error}", file=sys.stderr)
+        security={
+            "sanitized": sanitize_enabled,
+            "pii_removed": sanitize_enabled and prompt != sanitized_prompt
+        }
+    )
 
     # Step 13: Cache result (optional - for future optimization)
     # For now, skip caching

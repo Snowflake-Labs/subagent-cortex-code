@@ -38,3 +38,23 @@ def test_codex_config_does_not_document_sandbox_escape():
     text = Path("integrations/codex/cortexcode-tool-codex.yaml").read_text()
     assert "sandbox triggers a bypass prompt" not in text
     assert "PermissionError → tool runs outside sandbox" not in text
+
+
+def test_install_scripts_do_not_use_unquoted_sed_exec_or_broad_chmod():
+    for path in [
+        "integrations/cursor/install.sh",
+        "integrations/claude-code/install.sh",
+    ]:
+        text = Path(path).read_text()
+        assert "sed -i" not in text
+        assert 'chmod +x "$TARGET/scripts/"*.py' not in text
+        assert "chmod 700 \"$TARGET\"" in text
+        assert "chmod 600" in text
+
+
+def test_org_policy_env_var_not_documented():
+    for path in [
+        "integrations/codex/SECURITY.md",
+        "integrations/claude-code/config.yaml.example",
+    ]:
+        assert "CORTEX_SKILL_ORG_POLICY" not in Path(path).read_text()

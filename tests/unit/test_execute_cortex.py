@@ -477,3 +477,38 @@ class TestIssue13EnvelopeHardening:
                 envelope="NONE",
             )
         mock_popen.assert_not_called()
+
+
+def _disallowed_from_cmd(cmd):
+    return [cmd[i + 1] for i, value in enumerate(cmd) if value == "--disallowed-tools"]
+
+
+class TestIssue13MediumEnvelopeHardening:
+    @patch('execute_cortex.subprocess.Popen')
+    def test_rw_blocks_bash_tool_by_default(self, mock_popen):
+        mock_process = MagicMock()
+        mock_process.stdout = []
+        mock_process.stderr = []
+        mock_process.wait.return_value = 0
+        mock_process.returncode = 0
+        mock_popen.return_value = mock_process
+
+        execute_cortex_streaming(prompt="Test prompt", envelope="RW", approval_mode="auto")
+
+        disallowed = _disallowed_from_cmd(mock_popen.call_args[0][0])
+        assert "Bash" in disallowed
+
+    @patch('execute_cortex.subprocess.Popen')
+    def test_error_output_is_redacted(self, mock_popen):
+        mock_process = MagicMock()
+        mock_process.stdout = []
+        mock_process.stderr = ["failure for john@example.com with sk-1234567890abcdef\n"]
+        mock_process.wait.return_value = 0
+        mock_process.returncode = 1
+        mock_popen.return_value = mock_process
+
+        result = execute_cortex_streaming(prompt="Test prompt", timeout_seconds=1)
+
+        assert "john@example.com" not in result["error"]
+        assert "sk-1234567890abcdef" not in result["error"]
+        assert "<EMAIL>" in result["error"]

@@ -258,7 +258,7 @@ def test_execute_cortex_rw_envelope_blocks_destructive_shell():
             if arg == "--disallowed-tools" and i + 1 < len(cmd):
                 disallowed_tools.append(cmd[i + 1])
 
-        assert "Bash" not in disallowed_tools
+        assert "Bash" in disallowed_tools
         assert "Bash(rm *)" in disallowed_tools
         assert "Bash(rm -rf *)" in disallowed_tools
         assert "Bash(sudo *)" in disallowed_tools

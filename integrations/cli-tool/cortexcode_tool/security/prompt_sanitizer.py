@@ -37,6 +37,7 @@ class PromptSanitizer:
 
     API_KEY_PATTERN = re.compile(
         r'\b(?:api[_-]?key|token|secret)\s*[:=]\s*["\']?[A-Za-z0-9_./+=-]{8,}["\']?|'
+        r'\bsk-[A-Za-z0-9_./+=-]{8,}\b|'
         r'\b[A-Za-z0-9]{32,}\b',
         re.IGNORECASE,
     )

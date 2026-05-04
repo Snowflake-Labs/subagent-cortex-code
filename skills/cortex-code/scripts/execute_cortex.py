@@ -15,6 +15,11 @@ import time
 from pathlib import Path
 from typing import List, Dict, Optional
 
+try:
+    from security.prompt_sanitizer import PromptSanitizer
+except Exception:
+    PromptSanitizer = None
+
 
 # Known tools for inversion logic (allowed -> disallowed)
 KNOWN_TOOLS = [
@@ -23,12 +28,20 @@ KNOWN_TOOLS = [
 ]
 
 DESTRUCTIVE_SHELL_TOOLS = [
+    "Bash",
     "Bash(rm *)", "Bash(rm -rf *)", "Bash(rm -r *)",
     "Bash(sudo *)", "Bash(chmod 777 *)",
     "Bash(git push *)", "Bash(git reset --hard *)"
 ]
 
 READ_ONLY_TOOLS = ["Edit", "Write", "Bash"] + DESTRUCTIVE_SHELL_TOOLS
+
+
+def _redact_error_output(error_text: str) -> str:
+    """Redact sensitive data before returning/logging error output."""
+    if PromptSanitizer is None:
+        return error_text
+    return PromptSanitizer().sanitize(error_text)
 
 
 def invert_tools_to_disallowed(allowed_tools: List[str]) -> List[str]:
@@ -277,7 +290,7 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
 
         # Check for errors
         if process.returncode != 0:
-            stderr_output = "".join(stderr_lines)
+            stderr_output = _redact_error_output("".join(stderr_lines))
             results["error"] = stderr_output
             print(f"Error: Cortex exited with code {process.returncode}", file=sys.stderr)
             print(f"Stderr: {stderr_output}", file=sys.stderr)
@@ -301,7 +314,7 @@ def execute_cortex_streaming(prompt: str, connection: Optional[str] = None,
             "events": [],
             "permission_requests": [],
             "final_result": None,
-            "error": str(e)
+            "error": _redact_error_output(str(e))
         }
 
 

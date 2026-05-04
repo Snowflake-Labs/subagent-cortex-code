@@ -131,3 +131,20 @@ def test_audit_logger_initialization_failure_is_deferred(monkeypatch, temp_dir):
             execution={},
             result={}
         )
+
+
+def test_audit_log_entries_include_hash_chain(temp_dir):
+    """Audit entries should include tamper-evident hash chaining metadata."""
+    log_path = temp_dir / "audit.log"
+    logger = AuditLogger(log_path)
+
+    first_id = logger.log_execution("event1", "user", {}, {}, {})
+    second_id = logger.log_execution("event2", "user", {}, {}, {})
+
+    entries = [json.loads(line) for line in log_path.read_text().splitlines()]
+    assert entries[0]["audit_id"] == first_id
+    assert entries[1]["audit_id"] == second_id
+    assert entries[0]["prev_hash"] is None
+    assert entries[0]["entry_hash"]
+    assert entries[1]["prev_hash"] == entries[0]["entry_hash"]
+    assert entries[1]["entry_hash"]
