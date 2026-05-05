@@ -27,6 +27,20 @@ def test_cli_setup_writes_prompt_default():
     assert 'approval_mode: "auto"' not in setup_text
 
 
+def test_cli_setup_secures_install_and_bin_dirs():
+    setup_text = Path("integrations/cli-tool/setup.sh").read_text()
+
+    assert 'chmod 700 "$INSTALL_DIR"' in setup_text
+    assert 'chmod 700 "$BIN_DIR"' in setup_text
+    assert 'chmod 700 "$CONFIG_DIR"' in setup_text
+
+
+def test_codex_install_secures_install_lib_dir():
+    install_text = Path("integrations/codex/install.sh").read_text()
+
+    assert 'chmod 700 "$INSTALL_LIB_DIR"' in install_text
+
+
 def test_codex_cli_config_defaults_to_prompt():
     config = yaml.safe_load(Path("integrations/codex/cortexcode-tool-codex.yaml").read_text())
 
@@ -109,3 +123,28 @@ def test_cli_rejects_none_envelope_before_execution(mock_config_manager, mock_ca
 
     mock_execute_query.assert_not_called()
     assert "NONE envelope is not allowed" in capsys.readouterr().err
+
+
+@patch("cortexcode_tool.main.execute_query")
+@patch("cortexcode_tool.main.CacheManager")
+@patch("cortexcode_tool.main.ConfigManager")
+def test_cli_rejects_envelope_outside_allowed_list_before_execution(
+    mock_config_manager,
+    mock_cache_manager,
+    mock_execute_query,
+    capsys,
+):
+    config = MagicMock()
+    config.get.side_effect = lambda key, default=None: {
+        "security.cache_dir": None,
+        "security.approval_mode": "prompt",
+        "security.allowed_envelopes": ["RO"],
+        "cortex.default_envelope": "RO",
+    }.get(key, default)
+    mock_config_manager.return_value = config
+    mock_cache_manager.return_value = MagicMock()
+
+    assert main(["--envelope", "DEPLOY", "--yes", "How many databases?"]) == 1
+
+    mock_execute_query.assert_not_called()
+    assert "Envelope DEPLOY is not allowed" in capsys.readouterr().err

@@ -79,7 +79,13 @@ printf '%s\n' "$python_wrapper" > "$BIN_DIR/cortexcode-tool"
 chmod +x "$BIN_DIR/cortexcode-tool"
 
 # Set secure permissions
+chmod 700 "$INSTALL_DIR"
+chmod 700 "$BIN_DIR"
 chmod 700 "$CONFIG_DIR"
+find "$INSTALL_DIR" -type d -exec chmod 700 {} +
+find "$INSTALL_DIR" -type f -exec chmod 600 {} +
+find "$INSTALL_DIR" -name '*.py' -exec chmod 700 {} +
+chmod 700 "$BIN_DIR/cortexcode-tool"
 
 # Auto-detect active Cortex connection
 echo ""

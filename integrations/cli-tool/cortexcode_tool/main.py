@@ -156,6 +156,11 @@ def execute_query(
     if envelope == "NONE":
         print("NONE envelope is not allowed for cortexcode-tool execution", file=sys.stderr)
         return 1
+    allowed_envelopes = config.get("security.allowed_envelopes", ["RO", "RW", "RESEARCH"])
+    if envelope not in allowed_envelopes:
+        print(f"Envelope {envelope} is not allowed for cortexcode-tool execution", file=sys.stderr)
+        print(f"Allowed envelopes: {', '.join(allowed_envelopes)}", file=sys.stderr)
+        return 1
 
     # Handle approval if needed
     approval_mode = config.get("security.approval_mode", "prompt")
@@ -303,6 +308,11 @@ def main(argv: Optional[List[str]] = None) -> int:
             envelope = args.envelope or config.get("cortex.default_envelope", "RW")
             if envelope == "NONE":
                 print("NONE envelope is not allowed for cortexcode-tool execution", file=sys.stderr)
+                return 1
+            allowed_envelopes = config.get("security.allowed_envelopes", ["RO", "RW", "RESEARCH"])
+            if envelope not in allowed_envelopes:
+                print(f"Envelope {envelope} is not allowed for cortexcode-tool execution", file=sys.stderr)
+                print(f"Allowed envelopes: {', '.join(allowed_envelopes)}", file=sys.stderr)
                 return 1
 
             return execute_query(args.query, config, cache, audit_logger, approved=args.yes, envelope=envelope)
