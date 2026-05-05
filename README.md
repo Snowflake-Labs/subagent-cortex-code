@@ -233,7 +233,7 @@ The Cortex Code Integration Skill bridges coding agents and Cortex Code CLI, all
 
 **Key Features:**
 - **Smart Routing**: LLM-based semantic routing automatically detects Snowflake operations
-- **Security Envelopes**: Configurable permission models (RO, RW, RESEARCH, DEPLOY; NONE only for explicitly custom prompt-mode use)
+- **Security Envelopes**: Configurable permission models (RO, RW, RESEARCH, DEPLOY); `NONE` is rejected for managed Cortex execution
 - **Approval Modes**: Three security modes (prompt/auto/envelope_only) for different trust levels
 - **Prompt Sanitization**: Automatic PII removal and injection attempt detection
 - **Context Enrichment**: Passes conversation history to Cortex for informed execution
@@ -299,7 +299,7 @@ security:
 | **RW** (Read-Write) | Data modifications | Bash and destructive shell patterns |
 | **RESEARCH** | Exploratory work | Edit, Write, Bash |
 | **DEPLOY** | Deployment operations | Requires explicit confirmation; blocks Bash/destructive shell |
-| **NONE** | Custom prompt-mode blocklist | Rejected in auto/envelope_only modes |
+| **NONE** | No managed execution | Rejected before Cortex execution |
 
 ### Built-in Protections
 
@@ -307,7 +307,9 @@ security:
 2. **Credential Blocking**: Prevents routing when paths like `~/.ssh/`, `.env` are detected
 3. **Secure Caching**: HMAC-signed capability cache under `~/.cache/cortex-skill/`
 4. **Audit Logging**: Tamper-evident JSONL logs with hash chaining, including prompt-mode approval requests
-5. **Organization Policy**: Enterprise admins can enforce settings via `~/.snowflake/cortex/claude-skill-policy.yaml`
+5. **Envelope Gate**: Requested envelopes must be present in `security.allowed_envelopes` before routing, approval, or Cortex execution
+6. **Organization Policy**: Enterprise admins can enforce settings via `~/.snowflake/cortex/claude-skill-policy.yaml`; relaxed approval/envelope settings must be explicitly authorized
+7. **Private Installs**: Installers use private permissions (`0700` directories, `0600` sensitive config/log files)
 
 See [SECURITY.md](SECURITY.md) and [SECURITY_GUIDE.md](SECURITY_GUIDE.md) for full details.
 
@@ -331,7 +333,7 @@ Cortex is invoked with stream JSON output for non-TTY execution:
 ```bash
 cortex -p "ENRICHED_PROMPT" --output-format stream-json
 ```
-Security is enforced via `--disallowed-tools` blocklists controlled by the chosen envelope. Auto and envelope-only modes are trusted, opt-in modes: user config cannot enable them unless an organization policy explicitly permits it, `NONE` is rejected in those modes, and `DEPLOY` requires explicit confirmation.
+Security is enforced via `--disallowed-tools` blocklists controlled by the chosen envelope. Requested envelopes are checked against `security.allowed_envelopes` before routing, approval, or Cortex execution. Auto and envelope-only modes are trusted, opt-in modes: user config cannot enable them unless an organization policy explicitly permits the relaxed field/value, `NONE` is rejected before Cortex execution, and `DEPLOY` requires explicit confirmation.
 
 ## Real-World Example
 

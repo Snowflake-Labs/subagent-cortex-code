@@ -45,7 +45,7 @@ cortex:
 ```
 
 Default is `prompt` mode — Claude Code will ask before executing Snowflake operations.
-Use `auto` only when an organization policy explicitly permits trusted automation; user config alone cannot relax the prompt default.
+Use `auto` only when an organization policy explicitly permits trusted automation; user config alone cannot relax the prompt default or expand allowed envelopes.
 
 ## What gets installed
 
@@ -104,7 +104,9 @@ When you ask a Snowflake-related question:
 | **RW** | Data modifications | Bash and destructive shell patterns |
 | **RESEARCH** | Exploratory work | Edit, Write, Bash |
 | **DEPLOY** | Deployment operations | Requires explicit confirmation; Bash/destructive shell blocked |
-| **NONE** | Custom prompt-mode blocklist | Rejected in auto/envelope_only modes |
+| **NONE** | No managed execution | Rejected before Cortex execution |
+
+Requested envelopes are checked against `security.allowed_envelopes` before routing, approval, or Cortex execution.
 
 ## Uninstall
 
