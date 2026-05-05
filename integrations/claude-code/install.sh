@@ -15,15 +15,15 @@ cp -r "$REPO_ROOT/shared/scripts/"* "$TARGET/scripts/"
 echo "Copying shared security modules..."
 cp -r "$REPO_ROOT/shared/security/"* "$TARGET/security/"
 
-# Parameterize for Claude Code (replace __CODING_AGENT__ with claude)
-echo "Parameterizing for Claude Code..."
-if [[ "$OSTYPE" == "darwin"* ]]; then
-    # macOS (BSD sed)
-    find "$TARGET" -name "*.py" -exec sed -i '' 's/__CODING_AGENT__/claude/g' {} \;
-else
-    # Linux (GNU sed)
-    find "$TARGET" -name "*.py" -exec sed -i 's/__CODING_AGENT__/claude/g' {} \;
-fi
+# Parameterize for Claude (replace __CODING_AGENT__ with claude)
+echo "Parameterizing for Claude..."
+python3 - "$TARGET" <<'PY'
+import sys
+from pathlib import Path
+root = Path(sys.argv[1])
+for path in root.rglob("*.py"):
+    path.write_text(path.read_text().replace("__CODING_AGENT__", "claude"))
+PY
 
 # Copy Claude Code specific files
 echo "Copying Claude Code specific files..."
@@ -34,8 +34,11 @@ cp "$REPO_ROOT/integrations/claude-code/config.yaml" "$TARGET/"
 # Note: config.yaml defaults to approval_mode: "prompt" for interactive safety.
 # Users can opt into auto/envelope_only modes via config.yaml.example if needed.
 
-# Make scripts executable
-chmod +x "$TARGET/scripts/"*.py
+# Secure installed files
+chmod 700 "$TARGET"
+find "$TARGET" -type d -exec chmod 700 {} \;
+find "$TARGET" -type f -exec chmod 600 {} \;
+find "$TARGET/scripts" -name "*.py" -exec chmod 700 {} \;
 
 echo ""
 echo "✓ Claude Code skill installed successfully"

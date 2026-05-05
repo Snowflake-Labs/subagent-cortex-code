@@ -39,6 +39,14 @@ If you used `integrations/cursor/install.sh`, you can also copy the project-loca
 
 That's it. Cursor will now automatically route Snowflake questions to Cortex Code.
 
+## Security defaults
+
+- The skill defaults to `approval_mode: prompt` and read-only (`RO`) behavior for reads.
+- Cursor examples do not force `--approval-mode "auto"`.
+- User config cannot relax approval mode or expand envelopes unless organization policy explicitly authorizes that field/value.
+- Requested envelopes are checked against `security.allowed_envelopes` before routing, approval, or Cortex execution; `NONE` is rejected.
+- Cache and audit logs use private cache/skill directories with restrictive permissions.
+
 ---
 
 ## What the routing rule does

@@ -53,9 +53,10 @@ fi
 echo ""
 echo "Writing config to $INSTALL_LIB_DIR/config.yaml..."
 mkdir -p "$INSTALL_LIB_DIR"
+chmod 700 "$INSTALL_LIB_DIR"
 sed "s/connection_name: \"default\"/connection_name: \"$ACTIVE_CONNECTION\"/" \
     "$SCRIPT_DIR/cortexcode-tool-codex.yaml" > "$INSTALL_LIB_DIR/config.yaml"
-chmod 644 "$INSTALL_LIB_DIR/config.yaml"
+chmod 600 "$INSTALL_LIB_DIR/config.yaml"
 
 # ── Step 4: Summary ────────────────────────────────────────────────────────
 echo ""

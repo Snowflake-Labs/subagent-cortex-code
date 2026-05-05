@@ -29,6 +29,7 @@ class ConfigManager:
             "cache_permissions": "0600",
             "allowed_envelopes": ["RO", "RW", "RESEARCH"],
             "deploy_envelope_confirmation": True,
+            "execution_timeout_seconds": 300,
             "credential_file_allowlist": [
                 "~/.ssh/*",
                 "~/.snowflake/*",
@@ -96,6 +97,11 @@ class ConfigManager:
                     f"audit_log_retention must be >= 0, got {retention}"
                 )
 
+    def _safe_placeholder_path(self, original_path: str) -> str:
+        """Fallback when install-time __CODING_AGENT__ replacement was not applied."""
+        suffix = Path(original_path).name or "audit.log"
+        return str(Path.home() / ".cache" / "cortex-skill" / suffix)
+
     def _expand_paths(self, config: Dict) -> Dict:
         """Expand ~ and environment variables in file paths."""
         security = config.get("security", {})
@@ -103,6 +109,8 @@ class ConfigManager:
         # Expand audit_log_path
         if "audit_log_path" in security:
             security["audit_log_path"] = os.path.expanduser(security["audit_log_path"])
+            if "__CODING_AGENT__" in security["audit_log_path"]:
+                security["audit_log_path"] = self._safe_placeholder_path(security["audit_log_path"])
 
         # Expand cache_dir
         if "cache_dir" in security:
@@ -132,12 +140,15 @@ class ConfigManager:
             except OSError as e:
                 print(f"Warning: Failed to read user config {config_path}: {e}", file=sys.stderr)
 
+        org_policy_security = {}
+
         # Load org policy if exists
         if org_policy_path and org_policy_path.exists():
             try:
                 with open(org_policy_path, 'r') as f:
                     try:
                         org_policy = yaml.safe_load(f) or {}
+                        org_policy_security = org_policy.get("security", {}) or {}
 
                         # If override flag set, org policy wins completely
                         if org_policy.get("security", {}).get("override_user_config"):
@@ -151,6 +162,13 @@ class ConfigManager:
             except OSError as e:
                 print(f"Warning: Failed to read org policy {org_policy_path}: {e}", file=sys.stderr)
 
+        # Validate before applying floors so invalid user config is still rejected.
+        self._validate_config(config)
+
+        # User config must not relax the security floor unless org policy
+        # explicitly authorizes the relaxed field/value.
+        config = self._enforce_security_floor(config, org_policy_security)
+
         # Validate configuration
         self._validate_config(config)
 
@@ -158,6 +176,30 @@ class ConfigManager:
         config = self._expand_paths(config)
 
         return config
+
+    def _enforce_security_floor(self, config: Dict, org_policy_security: Optional[Dict] = None) -> Dict:
+        """Prevent user config from relaxing defaults without explicit org policy."""
+        result = copy.deepcopy(config)
+        security = result.setdefault("security", {})
+        default_security = self.DEFAULT_CONFIG["security"]
+        org_policy_security = org_policy_security or {}
+
+        if (
+            security.get("approval_mode") != default_security["approval_mode"]
+            and "approval_mode" not in org_policy_security
+        ):
+            security["approval_mode"] = default_security["approval_mode"]
+
+        default_envelopes = set(default_security["allowed_envelopes"])
+        explicit_org_envelopes = set(org_policy_security.get("allowed_envelopes", []))
+        envelope_floor = default_envelopes | explicit_org_envelopes
+        requested_envelopes = security.get("allowed_envelopes", default_security["allowed_envelopes"])
+        security["allowed_envelopes"] = [
+            envelope for envelope in requested_envelopes
+            if envelope in envelope_floor
+        ]
+
+        return result
 
     def _merge_config(self, base: Dict, override: Dict) -> Dict:
         """Deep merge override into base."""

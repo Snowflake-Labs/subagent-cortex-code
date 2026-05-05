@@ -233,7 +233,7 @@ The Cortex Code Integration Skill bridges coding agents and Cortex Code CLI, all
 
 **Key Features:**
 - **Smart Routing**: LLM-based semantic routing automatically detects Snowflake operations
-- **Security Envelopes**: Configurable permission models (RO, RW, RESEARCH, DEPLOY, NONE)
+- **Security Envelopes**: Configurable permission models (RO, RW, RESEARCH, DEPLOY); `NONE` is rejected for managed Cortex execution
 - **Approval Modes**: Three security modes (prompt/auto/envelope_only) for different trust levels
 - **Prompt Sanitization**: Automatic PII removal and injection attempt detection
 - **Context Enrichment**: Passes conversation history to Cortex for informed execution
@@ -295,19 +295,21 @@ security:
 
 | Envelope | Use Case | Blocked Tools |
 |----------|----------|---------------|
-| **RO** (Read-Only) | Queries and reads | Edit, Write, destructive Bash |
-| **RW** (Read-Write) | Data modifications | Destructive operations (rm -rf, sudo) |
-| **RESEARCH** | Exploratory work | Write operations |
-| **DEPLOY** | Deployment operations | Destructive shell operations |
-| **NONE** | Custom blocklist | Specify via --disallowed-tools |
+| **RO** (Read-Only) | Queries and reads | Edit, Write, Bash |
+| **RW** (Read-Write) | Data modifications | Bash and destructive shell patterns |
+| **RESEARCH** | Exploratory work | Edit, Write, Bash |
+| **DEPLOY** | Deployment operations | Requires explicit confirmation; blocks Bash/destructive shell |
+| **NONE** | No managed execution | Rejected before Cortex execution |
 
 ### Built-in Protections
 
 1. **Prompt Sanitization**: Automatic removal of PII (emails, SSN, credit cards)
 2. **Credential Blocking**: Prevents routing when paths like `~/.ssh/`, `.env` are detected
-3. **Secure Caching**: SHA256 integrity validation on cached capabilities
-4. **Audit Logging**: Structured JSONL logs (mandatory for auto/envelope_only modes)
-5. **Organization Policy**: Enterprise admins can enforce settings via `~/.snowflake/cortex/claude-skill-policy.yaml`
+3. **Secure Caching**: HMAC-signed capability cache under `~/.cache/cortex-skill/`
+4. **Audit Logging**: Tamper-evident JSONL logs with hash chaining, including prompt-mode approval requests
+5. **Envelope Gate**: Requested envelopes must be present in `security.allowed_envelopes` before routing, approval, or Cortex execution
+6. **Organization Policy**: Enterprise admins can enforce settings via `~/.snowflake/cortex/claude-skill-policy.yaml`; relaxed approval/envelope settings must be explicitly authorized
+7. **Private Installs**: Installers use private permissions (`0700` directories, `0600` sensitive config/log files)
 
 See [SECURITY.md](SECURITY.md) and [SECURITY_GUIDE.md](SECURITY_GUIDE.md) for full details.
 
@@ -320,7 +322,7 @@ The integration automatically discovers Cortex Code's native capabilities at ses
 1. Runs `cortex skill list` to enumerate all available skills (32+ bundled in v1.0.42)
 2. Reads each skill's `SKILL.md` from `~/.local/share/cortex/{version}/bundled_skills/`
 3. Extracts trigger patterns ("data quality", "semantic view", "DMF", etc.)
-4. Caches results for the session with SHA256 validation
+4. Caches results with `CacheManager` in the configured cache directory
 5. Uses discovered triggers to boost routing score for matching requests
 
 This is **future-proof**: new Cortex releases with additional skills work automatically.
@@ -331,7 +333,7 @@ Cortex is invoked with stream JSON output for non-TTY execution:
 ```bash
 cortex -p "ENRICHED_PROMPT" --output-format stream-json
 ```
-Security is enforced via `--disallowed-tools` blocklist (controlled by the chosen envelope). Auto and envelope-only modes are trusted, opt-in modes because they approve non-blocked tools without an interactive prompt.
+Security is enforced via `--disallowed-tools` blocklists controlled by the chosen envelope. Requested envelopes are checked against `security.allowed_envelopes` before routing, approval, or Cortex execution. Auto and envelope-only modes are trusted, opt-in modes: user config cannot enable them unless an organization policy explicitly permits the relaxed field/value, `NONE` is rejected before Cortex execution, and `DEPLOY` requires explicit confirmation.
 
 ## Real-World Example
 

@@ -169,3 +169,20 @@ def test_invalid_cache_keys(mock_cache_dir):
     cache.write("valid.key", test_data)
     cache.write("ValidKey123", test_data)
     assert cache.read("valid_key") == test_data
+
+
+def test_cache_hmac_detects_recomputed_fingerprint_tampering(mock_cache_dir, monkeypatch):
+    """Tampering should fail even if attacker recomputes the legacy fingerprint."""
+    monkeypatch.setenv("CORTEX_CODE_CACHE_HMAC_KEY", "test-secret")
+    cache = CacheManager(mock_cache_dir)
+    cache.write("signed_key", {"key": "value"}, ttl=3600)
+
+    cache_file = mock_cache_dir / "signed_key.json"
+    cache_entry = json.loads(cache_file.read_text())
+    cache_entry["data"] = {"key": "tampered"}
+    cache_entry["fingerprint"] = __import__("hashlib").sha256(
+        json.dumps(cache_entry["data"], sort_keys=True).encode()
+    ).hexdigest()
+    cache_file.write_text(json.dumps(cache_entry))
+
+    assert cache.read("signed_key") is None

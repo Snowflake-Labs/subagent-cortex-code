@@ -10,6 +10,20 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent / "shared" / "
 from security_wrapper import execute_with_security
 
 
+@pytest.fixture(autouse=True)
+def mock_cortex_execution():
+    """Keep shared E2E routing tests from invoking a real Cortex process."""
+    with patch("security_wrapper.execute_cortex_streaming") as mock_execute:
+        mock_execute.return_value = {
+            "session_id": "session-1",
+            "events": [],
+            "permission_requests": [],
+            "final_result": "ok",
+            "error": None,
+        }
+        yield mock_execute
+
+
 @pytest.mark.integration
 def test_full_snowflake_query_flow(tmp_path):
     """Full flow: Snowflake prompt → route → execute → audit"""
@@ -91,6 +105,8 @@ def test_approval_mode_auto(tmp_path):
     """Auto mode: should execute immediately with audit"""
     config_path = tmp_path / "config.yaml"
     config_path.write_text('security:\n  approval_mode: "auto"')
+    org_policy_path = tmp_path / "policy.yaml"
+    org_policy_path.write_text('security:\n  approval_mode: "auto"')
 
     prompt = "Query Snowflake databases"
 
@@ -100,6 +116,7 @@ def test_approval_mode_auto(tmp_path):
         result = execute_with_security(
             prompt=prompt,
             config_path=str(config_path),
+            org_policy_path=str(org_policy_path),
             dry_run=False,
             envelope={"type": "RW", "user_prompt": prompt}
         )
@@ -110,16 +127,38 @@ def test_approval_mode_auto(tmp_path):
 
 @pytest.mark.integration
 def test_envelope_ro_restrictions():
-    """RO envelope should block write operations"""
-    # This is tested via execute_cortex tests
-    pass
+    """RO envelope should wait for approval instead of executing writes directly."""
+    prompt = "Update Snowflake table"
+    result = execute_with_security(
+        prompt=prompt,
+        config_path=None,
+        dry_run=False,
+        envelope={"type": "RO", "user_prompt": prompt}
+    )
+
+    assert result["status"] == "awaiting_approval"
+    assert "approval_prompt" in result
 
 
 @pytest.mark.integration
-def test_envelope_rw_permissions():
-    """RW envelope should allow snowflake operations"""
-    # This is tested via execute_cortex tests
-    pass
+def test_envelope_rw_permissions(tmp_path):
+    """RW envelope can execute only when org policy explicitly enables auto mode."""
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text('security:\n  approval_mode: "auto"')
+    org_policy_path = tmp_path / "policy.yaml"
+    org_policy_path.write_text('security:\n  approval_mode: "auto"')
+    prompt = "Update Snowflake table"
+
+    result = execute_with_security(
+        prompt=prompt,
+        config_path=str(config_path),
+        org_policy_path=str(org_policy_path),
+        dry_run=False,
+        envelope={"type": "RW", "user_prompt": prompt}
+    )
+
+    assert result["status"] == "executed"
+    assert result["approval_mode"] == "auto"
 
 
 @pytest.mark.integration

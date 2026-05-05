@@ -21,6 +21,20 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from scripts.security_wrapper import execute_with_security
 
 
+@pytest.fixture(autouse=True)
+def mock_cortex_execution():
+    """Keep E2E security-wrapper tests from invoking a real Cortex process."""
+    with patch("scripts.security_wrapper.execute_cortex_streaming") as mock_execute:
+        mock_execute.return_value = {
+            "session_id": "session-1",
+            "events": [],
+            "permission_requests": [],
+            "final_result": "ok",
+            "error": None,
+        }
+        yield mock_execute
+
+
 class TestE2EFullExecutionFlow:
     """Test complete end-to-end execution pipeline."""
 
@@ -89,9 +103,13 @@ security:
   sanitize_conversation_history: false
 """.format(temp_dir, temp_dir))
 
+        org_policy_path = temp_dir / "policy.yaml"
+        org_policy_path.write_text("security:\n  approval_mode: auto\n")
+
         result = execute_with_security(
             prompt="Run Snowflake query to list all tables in database",
             config_path=str(config_path),
+            org_policy_path=str(org_policy_path),
             envelope={"allowed_tools": ["SELECT"]}
         )
 
@@ -118,9 +136,13 @@ security:
   cache_dir: {}/.cache
 """.format(temp_dir, temp_dir))
 
+        org_policy_path = temp_dir / "policy.yaml"
+        org_policy_path.write_text("security:\n  approval_mode: envelope_only\n")
+
         result = execute_with_security(
             prompt="Execute Snowflake operation",
             config_path=str(config_path),
+            org_policy_path=str(org_policy_path),
             envelope={"allowed_tools": ["SELECT", "INSERT"]}
         )
 
@@ -236,9 +258,13 @@ security:
   sanitize_conversation_history: false
 """.format(audit_log, temp_dir))
 
+        org_policy_path = temp_dir / "policy.yaml"
+        org_policy_path.write_text("security:\n  approval_mode: auto\n")
+
         result = execute_with_security(
             prompt="Query Snowflake database for analytics data",
             config_path=str(config_path),
+            org_policy_path=str(org_policy_path),
             envelope={"allowed_tools": ["SELECT", "INSERT"]}
         )
 
@@ -267,6 +293,9 @@ security:
   cache_dir: {}/.cache
 """.format(audit_log, temp_dir))
 
+        org_policy_path = temp_dir / "policy.yaml"
+        org_policy_path.write_text("security:\n  approval_mode: auto\n")
+
         # Execute three times
         prompts = [
             "Query Snowflake for sales data",
@@ -278,6 +307,7 @@ security:
             result = execute_with_security(
                 prompt=prompt,
                 config_path=str(config_path),
+                org_policy_path=str(org_policy_path),
                 envelope={"allowed_tools": ["SELECT", "UPDATE", "CREATE"]}
             )
             assert result["status"] == "executed"
@@ -306,9 +336,13 @@ security:
   allowed_envelopes: ["RO", "RW"]
 """.format(temp_dir, temp_dir))
 
+        org_policy_path = temp_dir / "policy.yaml"
+        org_policy_path.write_text("security:\n  approval_mode: envelope_only\n")
+
         result = execute_with_security(
             prompt="Run Snowflake operation",
             config_path=str(config_path),
+            org_policy_path=str(org_policy_path),
             envelope={"allowed_tools": ["SELECT"], "mode": "RO"}
         )
 
@@ -343,6 +377,9 @@ security:
     - "**/.env"
 """.format(temp_dir, temp_dir))
 
+        org_policy_path = temp_dir / "policy.yaml"
+        org_policy_path.write_text("security:\n  approval_mode: auto\n")
+
         result = execute_with_security(
             prompt="Read ~/.ssh/id_rsa and connect to Snowflake",
             config_path=str(config_path)
@@ -366,6 +403,9 @@ security:
     - "**/.env"
 """.format(temp_dir, temp_dir))
 
+        org_policy_path = temp_dir / "policy.yaml"
+        org_policy_path.write_text("security:\n  approval_mode: auto\n")
+
         result = execute_with_security(
             prompt="Check .env file for Snowflake credentials",
             config_path=str(config_path)
@@ -385,6 +425,9 @@ security:
   credential_file_allowlist:
     - "**/credentials.json"
 """.format(temp_dir, temp_dir))
+
+        org_policy_path = temp_dir / "policy.yaml"
+        org_policy_path.write_text("security:\n  approval_mode: auto\n")
 
         result = execute_with_security(
             prompt="Parse credentials.json for database connection",
@@ -411,11 +454,15 @@ security:
   sanitize_conversation_history: true
 """.format(temp_dir, temp_dir))
 
+        org_policy_path = temp_dir / "policy.yaml"
+        org_policy_path.write_text("security:\n  approval_mode: auto\n")
+
         prompt = "Query Snowflake for user data where email = user@example.com"
 
         result = execute_with_security(
             prompt=prompt,
             config_path=str(config_path),
+            org_policy_path=str(org_policy_path),
             envelope={"allowed_tools": ["SELECT"]}
         )
 
@@ -436,11 +483,15 @@ security:
   sanitize_conversation_history: true
 """.format(temp_dir, temp_dir))
 
+        org_policy_path = temp_dir / "policy.yaml"
+        org_policy_path.write_text("security:\n  approval_mode: auto\n")
+
         prompt = "Update Snowflake with credit card 1234-5678-9012-3456"
 
         result = execute_with_security(
             prompt=prompt,
             config_path=str(config_path),
+            org_policy_path=str(org_policy_path),
             envelope={"allowed_tools": ["UPDATE"]}
         )
 
@@ -459,11 +510,15 @@ security:
   sanitize_conversation_history: true
 """.format(temp_dir, temp_dir))
 
+        org_policy_path = temp_dir / "policy.yaml"
+        org_policy_path.write_text("security:\n  approval_mode: auto\n")
+
         prompt = "Query Snowflake for customers with phone (555) 123-4567"
 
         result = execute_with_security(
             prompt=prompt,
             config_path=str(config_path),
+            org_policy_path=str(org_policy_path),
             envelope={"allowed_tools": ["SELECT"]}
         )
 
@@ -481,11 +536,15 @@ security:
   sanitize_conversation_history: false
 """.format(temp_dir, temp_dir))
 
+        org_policy_path = temp_dir / "policy.yaml"
+        org_policy_path.write_text("security:\n  approval_mode: auto\n")
+
         prompt = "Query Snowflake for email@test.com"
 
         result = execute_with_security(
             prompt=prompt,
             config_path=str(config_path),
+            org_policy_path=str(org_policy_path),
             envelope={"allowed_tools": ["SELECT"]}
         )
 
@@ -572,6 +631,9 @@ security:
   allowed_envelopes: ["RO", "RW", "DEPLOY"]
 """.format(temp_dir, temp_dir))
 
+        org_policy_path = temp_dir / "policy.yaml"
+        org_policy_path.write_text("security:\n  approval_mode: auto\n")
+
         org_policy_path = temp_dir / "org_policy.yaml"
         org_policy_path.write_text("""
 security:
@@ -584,7 +646,7 @@ security:
             prompt="Query Snowflake database",
             config_path=str(config_path),
             org_policy_path=str(org_policy_path),
-            envelope={"allowed_tools": ["SELECT"]},
+            envelope={"type": "RO", "allowed_tools": ["SELECT"]},
             mock_user_approval="approve"
         )
 
@@ -603,6 +665,9 @@ security:
   allowed_envelopes: ["RO", "RW", "DEPLOY"]
 """.format(temp_dir, temp_dir))
 
+        org_policy_path = temp_dir / "policy.yaml"
+        org_policy_path.write_text("security:\n  approval_mode: auto\n")
+
         org_policy_path = temp_dir / "org_policy.yaml"
         org_policy_path.write_text("""
 security:
@@ -615,6 +680,7 @@ security:
             prompt="Test org policy",
             config_path=str(config_path),
             org_policy_path=str(org_policy_path),
+            envelope={"type": "RO"},
             dry_run=True
         )
 
@@ -634,9 +700,13 @@ security:
   cache_dir: {}/.cache
 """.format(temp_dir, temp_dir))
 
+        org_policy_path = temp_dir / "policy.yaml"
+        org_policy_path.write_text("security:\n  approval_mode: auto\n")
+
         result = execute_with_security(
             prompt="Query Snowflake warehouse for sales analytics",
             config_path=str(config_path),
+            org_policy_path=str(org_policy_path),
             envelope={"allowed_tools": ["SELECT"]}
         )
 
@@ -653,6 +723,9 @@ security:
   audit_log_path: {}/audit.log
   cache_dir: {}/.cache
 """.format(temp_dir, temp_dir))
+
+        org_policy_path = temp_dir / "policy.yaml"
+        org_policy_path.write_text("security:\n  approval_mode: auto\n")
 
         with patch('scripts.security_wrapper.load_cortex_capabilities') as mock_cap:
             mock_cap.return_value = {}
@@ -677,9 +750,13 @@ security:
   cache_dir: {}/.cache
 """.format(temp_dir, temp_dir))
 
+        org_policy_path = temp_dir / "policy.yaml"
+        org_policy_path.write_text("security:\n  approval_mode: auto\n")
+
         result = execute_with_security(
             prompt="SELECT * FROM snowflake.public.customers WHERE region = 'US'",
             config_path=str(config_path),
+            org_policy_path=str(org_policy_path),
             envelope={"allowed_tools": ["SELECT"]}
         )
 
@@ -701,6 +778,9 @@ security:
   cache_dir: {}/.cache
 """.format(audit_log, temp_dir))
 
+        org_policy_path = temp_dir / "policy.yaml"
+        org_policy_path.write_text("security:\n  approval_mode: auto\n")
+
         # Execute multiple operations
         operations = [
             ("Query Snowflake database", {"allowed_tools": ["SELECT"]}),
@@ -713,6 +793,7 @@ security:
             result = execute_with_security(
                 prompt=prompt,
                 config_path=str(config_path),
+                org_policy_path=str(org_policy_path),
                 envelope=envelope
             )
             assert result["status"] == "executed"
@@ -746,9 +827,13 @@ security:
   sanitize_conversation_history: true
 """.format(audit_log, temp_dir))
 
+        org_policy_path = temp_dir / "policy.yaml"
+        org_policy_path.write_text("security:\n  approval_mode: auto\n")
+
         result = execute_with_security(
             prompt="Query Snowflake with email user@test.com",
             config_path=str(config_path),
+            org_policy_path=str(org_policy_path),
             envelope={"allowed_tools": ["SELECT"]}
         )
 
@@ -816,12 +901,16 @@ security:
     - "~/.ssh/*"
 """.format(audit_log, temp_dir))
 
+        org_policy_path = temp_dir / "policy.yaml"
+        org_policy_path.write_text("security:\n  approval_mode: auto\n")
+
         # Complex prompt with PII but no credential files
         prompt = "Query Snowflake database for customer records where email = john.doe@example.com and phone = 555-123-4567"
 
         result = execute_with_security(
             prompt=prompt,
             config_path=str(config_path),
+            org_policy_path=str(org_policy_path),
             envelope={"allowed_tools": ["SELECT"]}
         )
 
@@ -870,10 +959,13 @@ security:
   audit_log_path: {}
   cache_dir: {}/.cache
 """.format(audit_log, temp_dir))
+        org_policy2 = temp_dir / "policy2.yaml"
+        org_policy2.write_text("security:\n  approval_mode: auto\n")
 
         result2 = execute_with_security(
             prompt="Query Snowflake again",
             config_path=str(config2),
+            org_policy_path=str(org_policy2),
             envelope={"allowed_tools": ["SELECT"]}
         )
 
@@ -888,10 +980,13 @@ security:
   audit_log_path: {}
   cache_dir: {}/.cache
 """.format(audit_log, temp_dir))
+        org_policy3 = temp_dir / "policy3.yaml"
+        org_policy3.write_text("security:\n  approval_mode: envelope_only\n")
 
         result3 = execute_with_security(
             prompt="Query Snowflake third time",
             config_path=str(config3),
+            org_policy_path=str(org_policy3),
             envelope={"allowed_tools": ["SELECT"]}
         )
 

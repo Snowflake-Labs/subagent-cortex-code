@@ -43,15 +43,15 @@ class TestToolInversion:
         allowed = []
         disallowed = invert_tools_to_disallowed(allowed)
 
-        assert set(disallowed) == set(KNOWN_TOOLS)
-        assert len(disallowed) == len(KNOWN_TOOLS)
+        assert set(disallowed) == set(KNOWN_TOOLS + ["*"])
+        assert len(disallowed) == len(KNOWN_TOOLS) + 1
 
     def test_invert_single_allowed_tool(self):
         """When one tool is allowed, all others should be disallowed."""
         allowed = ["Read"]
         disallowed = invert_tools_to_disallowed(allowed)
 
-        expected = [t for t in KNOWN_TOOLS if t != "Read"]
+        expected = [t for t in KNOWN_TOOLS if t != "Read"] + ["*"]
         assert set(disallowed) == set(expected)
         assert "Read" not in disallowed
 
@@ -60,7 +60,7 @@ class TestToolInversion:
         allowed = ["Read", "Grep", "Glob"]
         disallowed = invert_tools_to_disallowed(allowed)
 
-        expected = [t for t in KNOWN_TOOLS if t not in allowed]
+        expected = [t for t in KNOWN_TOOLS if t not in allowed] + ["*"]
         assert set(disallowed) == set(expected)
         for tool in allowed:
             assert tool not in disallowed
@@ -70,7 +70,7 @@ class TestToolInversion:
         allowed = list(KNOWN_TOOLS)
         disallowed = invert_tools_to_disallowed(allowed)
 
-        assert disallowed == []
+        assert disallowed == ["*"]
 
     def test_invert_unknown_tool_ignored(self):
         """Unknown tools in allowed list should be ignored."""
@@ -79,7 +79,7 @@ class TestToolInversion:
 
         # UnknownTool is not in KNOWN_TOOLS, so it's ignored
         # Only Read and Grep should be excluded from disallowed
-        expected = [t for t in KNOWN_TOOLS if t not in ["Read", "Grep"]]
+        expected = [t for t in KNOWN_TOOLS if t not in ["Read", "Grep"]] + ["*"]
         assert set(disallowed) == set(expected)
 
     def test_invert_preserves_tool_names(self):
@@ -312,14 +312,15 @@ class TestCLIInterface:
         """CLI should accept --output-file and write results there."""
         output_file = tmp_path / "cortex-result.json"
 
-        with patch('execute_cortex.execute_cortex_streaming') as mock_exec:
-            mock_exec.return_value = {"final_result": "ok", "error": None}
-            with patch('sys.argv', [
+        with patch.dict('os.environ', {'CORTEX_CODE_OUTPUT_DIR': str(tmp_path)}):
+            with patch('execute_cortex.execute_cortex_streaming') as mock_exec:
+                mock_exec.return_value = {"final_result": "ok", "error": None}
+                with patch('sys.argv', [
                 'execute_cortex.py',
                 '--prompt', 'test',
                 '--output-file', str(output_file)
             ]):
-                result = main()
+                    result = main()
 
         assert result == 0
         assert json.loads(output_file.read_text()) == {"final_result": "ok", "error": None}
@@ -452,3 +453,122 @@ class TestBackwardCompatibility:
         # RO envelope behavior should be unchanged
         assert "Write" in disallowed_tools
         assert "Edit" in disallowed_tools
+
+class TestIssue13EnvelopeHardening:
+    """Regression tests for issue #13 envelope hardening."""
+
+    @patch('execute_cortex.subprocess.Popen')
+    def test_none_envelope_rejected_in_auto_mode(self, mock_popen):
+        """NONE envelope must not disable all restrictions in auto mode."""
+        with pytest.raises(ValueError, match="NONE envelope"):
+            execute_cortex_streaming(
+                prompt="Test prompt",
+                approval_mode="auto",
+                envelope="NONE",
+            )
+        mock_popen.assert_not_called()
+
+    @patch('execute_cortex.subprocess.Popen')
+    def test_none_envelope_rejected_in_envelope_only_mode(self, mock_popen):
+        """NONE envelope must not disable all restrictions in envelope_only mode."""
+        with pytest.raises(ValueError, match="NONE envelope"):
+            execute_cortex_streaming(
+                prompt="Test prompt",
+                approval_mode="envelope_only",
+                envelope="NONE",
+            )
+        mock_popen.assert_not_called()
+
+
+def _disallowed_from_cmd(cmd):
+    return [cmd[i + 1] for i, value in enumerate(cmd) if value == "--disallowed-tools"]
+
+
+class TestIssue13MediumEnvelopeHardening:
+    @patch('execute_cortex.subprocess.Popen')
+    def test_rw_blocks_bash_tool_by_default(self, mock_popen):
+        mock_process = MagicMock()
+        mock_process.stdout = []
+        mock_process.stderr = []
+        mock_process.wait.return_value = 0
+        mock_process.returncode = 0
+        mock_popen.return_value = mock_process
+
+        execute_cortex_streaming(prompt="Test prompt", envelope="RW", approval_mode="auto")
+
+        disallowed = _disallowed_from_cmd(mock_popen.call_args[0][0])
+        assert "Bash" in disallowed
+
+    @patch('execute_cortex.subprocess.Popen')
+    def test_error_output_is_redacted(self, mock_popen):
+        mock_process = MagicMock()
+        mock_process.stdout = []
+        mock_process.stderr = ["failure for john@example.com with sk-1234567890abcdef\n"]
+        mock_process.wait.return_value = 0
+        mock_process.returncode = 1
+        mock_popen.return_value = mock_process
+
+        result = execute_cortex_streaming(prompt="Test prompt", timeout_seconds=1)
+
+        assert "john@example.com" not in result["error"]
+        assert "sk-1234567890abcdef" not in result["error"]
+        assert "<EMAIL>" in result["error"]
+
+
+class TestIssue13FinalHardening:
+    @patch('execute_cortex.subprocess.Popen')
+    def test_deploy_requires_explicit_confirmation(self, mock_popen):
+        with pytest.raises(ValueError, match="DEPLOY envelope requires explicit confirmation"):
+            execute_cortex_streaming(
+                prompt="Deploy Snowflake change",
+                envelope="DEPLOY",
+                approval_mode="auto",
+            )
+        mock_popen.assert_not_called()
+
+    @patch('execute_cortex.subprocess.Popen')
+    def test_prompt_mode_blocks_unknown_tools_when_allowed_tools_present(self, mock_popen):
+        mock_process = MagicMock()
+        mock_process.stdout = []
+        mock_process.stderr = []
+        mock_process.wait.return_value = 0
+        mock_process.returncode = 0
+        mock_popen.return_value = mock_process
+
+        execute_cortex_streaming(
+            prompt="Test prompt",
+            approval_mode="prompt",
+            allowed_tools=["snowflake_sql_execute"],
+        )
+
+        disallowed = _disallowed_from_cmd(mock_popen.call_args[0][0])
+        assert "*" in disallowed
+        assert "snowflake_sql_execute" not in disallowed
+
+
+def test_output_file_path_must_stay_under_safe_directory(tmp_path, monkeypatch):
+    monkeypatch.setenv("CORTEX_CODE_OUTPUT_DIR", str(tmp_path / "allowed"))
+    output_file = tmp_path / "outside.json"
+    with patch('execute_cortex.subprocess.Popen') as mock_popen:
+        mock_process = MagicMock()
+        mock_process.stdout = []
+        mock_process.stderr = []
+        mock_process.wait.return_value = 0
+        mock_process.returncode = 0
+        mock_popen.return_value = mock_process
+        with patch('sys.argv', ['execute_cortex.py', '--prompt', 'test', '--output-file', str(output_file)]):
+            assert main() == 1
+        assert not output_file.exists()
+
+
+def test_execute_cortex_defaults_to_prompt_mode():
+    import inspect
+    import execute_cortex
+
+    assert inspect.signature(execute_cortex.execute_cortex_streaming).parameters["approval_mode"].default == "prompt"
+
+
+def test_execute_cortex_cli_default_is_prompt():
+    text = Path("scripts/execute_cortex.py").read_text()
+    assert 'parser.add_argument("--approval-mode", default="prompt"' in text
+    assert 'Approval mode (default: prompt)' in text

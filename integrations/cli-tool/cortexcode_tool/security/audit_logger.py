@@ -1,4 +1,5 @@
 """Structured JSON audit logging with rotation."""
+import hashlib
 import json
 import os
 import uuid
@@ -78,10 +79,34 @@ class AuditLogger:
             "security": security or {}
         }
 
+        entry["prev_hash"] = self._last_entry_hash()
+        entry["entry_hash"] = self._entry_hash(entry)
+
         self._write_entry(entry)
         self._rotate_if_needed()
 
         return audit_id
+
+    def _entry_hash(self, entry: Dict[str, Any]) -> str:
+        """Hash a canonical audit entry for tamper-evident chaining."""
+        payload = json.dumps(entry, sort_keys=True, separators=(",", ":"))
+        return hashlib.sha256(payload.encode()).hexdigest()
+
+    def _last_entry_hash(self) -> Optional[str]:
+        """Return the previous entry hash if the audit log has entries."""
+        if not self.log_path.exists():
+            return None
+        try:
+            last_line = None
+            with open(self.log_path, 'r') as f:
+                for line in f:
+                    if line.strip():
+                        last_line = line
+            if not last_line:
+                return None
+            return json.loads(last_line).get("entry_hash")
+        except (OSError, json.JSONDecodeError):
+            return None
 
     def _write_entry(self, entry: Dict[str, Any]) -> None:
         """Write entry to log file as JSON.

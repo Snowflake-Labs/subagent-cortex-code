@@ -244,12 +244,9 @@ security:
 #   CORTEX_SKILL_CONFIG=/path/to/config.yaml
 #     Override default config path
 #
-#   CORTEX_SKILL_ORG_POLICY=/path/to/policy.yaml
-#     Override default organization policy path
 #
 # Example:
 #   export CORTEX_SKILL_CONFIG=~/.config/cortex-skill/config.yaml
-#   export CORTEX_SKILL_ORG_POLICY=/etc/cortex-skill/policy.yaml
 
 # ==============================================================================
 # ORGANIZATION POLICY (for teams/enterprises)

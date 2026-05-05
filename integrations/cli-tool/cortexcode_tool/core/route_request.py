@@ -7,6 +7,8 @@ Uses semantic understanding rather than simple keyword matching.
 import json
 import sys
 import argparse
+import fnmatch
+import re
 from pathlib import Path
 from typing import Optional, Dict, Any
 
@@ -20,11 +22,14 @@ SNOWFLAKE_INDICATORS = [
     "cortex ai", "cortex search", "cortex analyst", "dynamic table",
     "snowflake database", "snowflake schema", "snowflake table",
     "data governance", "data quality", "trust my data",
-    "ml function", "classification", "forecasting",
-    "stream", "task", "stage", "pipe"
+    "ml function", "classification", "forecasting"
 ]
 
 # Non-Snowflake indicators (route to Claude Code)
+SNOWFLAKE_CONTEXT_TERMS = ["snowflake", "warehouse", "cortex", "schema", "table", "database"]
+AMBIGUOUS_SNOWFLAKE_TERMS = ["stream", "task", "stage", "pipe"]
+PATH_TOKEN_PATTERN = re.compile(r'(?<![\w.-])(?:~/?|/|\./|\.\./|[A-Za-z0-9_.-]+/)[A-Za-z0-9_./$~:-]+|(?<![\w.-])(?:\.ssh|\.aws|\.snowflake|\.env(?:\.[\w-]+)?|credentials\.(?:json|ya?ml)|[A-Za-z0-9_.-]+_key\.(?:p8|pem))(?![\w.-])', re.IGNORECASE)
+
 CLAUDE_CODE_INDICATORS = [
     "local file", "git", "github", "commit", "push", "pull request",
     "python script", "javascript", "react", "frontend", "backend",
@@ -73,6 +78,12 @@ def analyze_with_llm_logic(prompt, capabilities):
     for indicator in SNOWFLAKE_INDICATORS:
         if indicator in prompt_lower:
             snowflake_score += 3 if indicator in ["snowflake", "cortex"] else 1
+
+    # Ambiguous Snowflake object names only count with Snowflake context.
+    if any(context in prompt_lower for context in SNOWFLAKE_CONTEXT_TERMS):
+        for term in AMBIGUOUS_SNOWFLAKE_TERMS:
+            if term in prompt_lower:
+                snowflake_score += 1
 
     # Check for non-Snowflake indicators
     for indicator in CLAUDE_CODE_INDICATORS:
@@ -155,29 +166,35 @@ def check_credential_allowlist(
     # Load credential allowlist
     credential_allowlist = config_manager.get("security.credential_file_allowlist")
 
-    # Check each pattern against the prompt (case-insensitive)
-    prompt_lower = prompt.lower()
+    prompt_tokens = PATH_TOKEN_PATTERN.findall(prompt)
+    normalized_tokens = []
+    for token in prompt_tokens:
+        normalized_tokens.append(token)
+        if token.startswith("~"):
+            normalized_tokens.append(token.replace("~", str(Path.home()), 1))
 
     for pattern in credential_allowlist:
-        # Strip wildcards from pattern: ~/ **/ * → base pattern
-        pattern_check = pattern.replace('~/', '').replace('**/', '').replace('*', '')
-
-        # Strip trailing slashes
-        pattern_check = pattern_check.rstrip('/')
-
-        # Skip empty patterns (patterns that are only wildcards)
-        if not pattern_check:
-            continue
-
-        # Check if pattern is in prompt (case-insensitive)
-        if pattern_check in prompt_lower:
-            return {
-                "blocked": True,
-                "route": "blocked",
-                "confidence": 1.0,
-                "reason": f"Prompt contains credential file path from allowlist",
-                "pattern_matched": pattern
-            }
+        expanded_pattern = str(Path(pattern).expanduser())
+        candidate_patterns = [pattern, expanded_pattern]
+        if pattern.startswith("~/**/"):
+            candidate_patterns.append("**/" + pattern.split("~/**/", 1)[1])
+        for token in normalized_tokens:
+            token_lower = token.lower()
+            for candidate_pattern in candidate_patterns:
+                pattern_lower = candidate_pattern.lower()
+                pattern_dir = pattern_lower.split("*")[0].rstrip("/")
+                if (
+                    fnmatch.fnmatch(token_lower, pattern_lower)
+                    or fnmatch.fnmatch(f"*/{token_lower}", pattern_lower)
+                    or (token_lower in {".ssh", ".aws", ".snowflake"} and pattern_dir.endswith(token_lower))
+                ):
+                    return {
+                        "blocked": True,
+                        "route": "blocked",
+                        "confidence": 1.0,
+                        "reason": f"Prompt contains credential file path from allowlist",
+                        "pattern_matched": pattern
+                    }
 
     # No credentials detected
     return {

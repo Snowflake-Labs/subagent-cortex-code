@@ -79,7 +79,13 @@ printf '%s\n' "$python_wrapper" > "$BIN_DIR/cortexcode-tool"
 chmod +x "$BIN_DIR/cortexcode-tool"
 
 # Set secure permissions
+chmod 700 "$INSTALL_DIR"
+chmod 700 "$BIN_DIR"
 chmod 700 "$CONFIG_DIR"
+find "$INSTALL_DIR" -type d -exec chmod 700 {} +
+find "$INSTALL_DIR" -type f -exec chmod 600 {} +
+find "$INSTALL_DIR" -name '*.py' -exec chmod 700 {} +
+chmod 700 "$BIN_DIR/cortexcode-tool"
 
 # Auto-detect active Cortex connection
 echo ""
@@ -100,15 +106,11 @@ else
 fi
 
 # Write config next to the installed package (checked first by main.py before ~/.config/).
-# cache_dir uses ~/.cache/ so Codex sandbox triggers a bypass prompt, allowing
-# the tool to reach Snowflake network outside the sandbox.
 echo ""
 echo "Writing config to $INSTALL_DIR/config.yaml..."
 cat > "$INSTALL_DIR/config.yaml" << EOF
 # Cortexcode Tool Configuration
 # Installed next to the cortexcode-tool package by setup.sh
-# cache_dir uses ~/.cache/ so Codex sandbox triggers a bypass prompt
-# (sandbox blocks ~/.cache/ → PermissionError → tool runs outside sandbox → network works)
 
 security:
   approval_mode: "prompt"
@@ -134,7 +136,7 @@ logging:
   format: "json"
   file: "~/.cache/cortexcode-tool/cortexcode-tool.log"
 EOF
-chmod 644 "$INSTALL_DIR/config.yaml"
+chmod 600 "$INSTALL_DIR/config.yaml"
 
 # Check if ~/.local/bin is in PATH
 if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then

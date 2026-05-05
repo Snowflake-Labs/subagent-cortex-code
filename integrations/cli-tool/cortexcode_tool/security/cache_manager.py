@@ -1,5 +1,6 @@
 """Secure cache manager with integrity validation."""
 import hashlib
+import hmac
 import json
 import os
 import re
@@ -32,6 +33,25 @@ class CacheManager:
                 stacklevel=2,
             )
 
+    def _signature_key(self) -> bytes:
+        """Return key material for cache tamper detection."""
+        return os.environ.get(
+            "CORTEX_CODE_CACHE_HMAC_KEY",
+            f"cortex-cache:{self.cache_dir}"
+        ).encode()
+
+    def _calculate_signature(self, cache_entry: dict) -> str:
+        """Calculate HMAC over stable cache fields."""
+        signed_payload = {
+            "version": cache_entry.get("version"),
+            "created_at": cache_entry.get("created_at"),
+            "expires_at": cache_entry.get("expires_at"),
+            "data": cache_entry.get("data"),
+            "fingerprint": cache_entry.get("fingerprint"),
+        }
+        payload = json.dumps(signed_payload, sort_keys=True, separators=(",", ":"))
+        return hmac.new(self._signature_key(), payload.encode(), hashlib.sha256).hexdigest()
+
     def _validate_key(self, key: str) -> None:
         """Validate cache key to prevent path traversal."""
         if not key:
@@ -63,6 +83,7 @@ class CacheManager:
         data_str = json.dumps(data, sort_keys=True)
         fingerprint = hashlib.sha256(data_str.encode()).hexdigest()
         cache_entry["fingerprint"] = fingerprint
+        cache_entry["signature"] = self._calculate_signature(cache_entry)
 
         # Write to file
         cache_file = self.cache_dir / f"{key}.json"
@@ -99,6 +120,12 @@ class CacheManager:
             expected_fingerprint = hashlib.sha256(data_str.encode()).hexdigest()
 
             if cache_entry["fingerprint"] != expected_fingerprint:
+                # Tampered - delete and return None
+                cache_file.unlink(missing_ok=True)
+                return None
+
+            expected_signature = self._calculate_signature(cache_entry)
+            if cache_entry.get("signature") != expected_signature:
                 # Tampered - delete and return None
                 cache_file.unlink(missing_ok=True)
                 return None

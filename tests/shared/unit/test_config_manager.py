@@ -34,8 +34,8 @@ security:
 
     config_manager = ConfigManager(config_path=config_path)
 
-    # User config should override defaults
-    assert config_manager.get("security.approval_mode") == "auto"
+    # User config should not relax the security floor without org policy
+    assert config_manager.get("security.approval_mode") == "prompt"
     assert config_manager.get("security.tool_prediction_confidence_threshold") == 0.8
     # Non-overridden values should still have defaults
     assert config_manager.get("security.allowed_envelopes") == ["RO", "RW", "RESEARCH"]

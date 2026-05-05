@@ -9,6 +9,7 @@ import os
 # Add scripts directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "scripts"))
 
+from security.config_manager import ConfigManager
 from route_request import analyze_with_llm_logic, check_credential_allowlist
 
 
@@ -438,3 +439,36 @@ class TestMainFunction:
             output = json.loads(json_output)
             assert output["route"] in ["cortex", "claude"]
             assert output.get("blocked") is not True
+
+class TestIssue13RoutingPrecision:
+    """Regression tests for overly broad Snowflake routing indicators."""
+
+    def test_local_stream_processing_task_stays_with_coding_agent(self):
+        """Generic stream/task wording should not route to Cortex without Snowflake context."""
+        route, confidence = analyze_with_llm_logic(
+            "fix my Python stream processing task",
+            capabilities={}
+        )
+        assert route == "__CODING_AGENT__"
+
+
+def test_credential_matching_does_not_block_environment_word():
+    """Credential allowlist should match paths, not naive substrings."""
+    result = check_credential_allowlist(
+        "Please explain the Snowflake environment setup",
+        None,
+        None,
+    )
+    assert result["blocked"] is False
+
+
+def test_credential_matching_blocks_env_path(tmp_path):
+    """Credential allowlist should still block real .env path references."""
+    config_file = tmp_path / "config.yaml"
+    config_file.write_text("""
+security:
+  credential_file_allowlist:
+    - "**/.env"
+""")
+    result = check_credential_allowlist("Read ./app/.env before querying Snowflake", config_file, None)
+    assert result["blocked"] is True

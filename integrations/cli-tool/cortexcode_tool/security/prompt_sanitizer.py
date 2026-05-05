@@ -1,6 +1,7 @@
 """Prompt sanitizer for PII removal and injection detection."""
 
 import re
+import unicodedata
 from typing import List, Dict, Any
 
 
@@ -35,8 +36,23 @@ class PromptSanitizer:
     )
 
     API_KEY_PATTERN = re.compile(
-        r'\b[A-Za-z0-9]{32,}\b'  # Simple pattern for long alphanumeric strings
+        r'\b(?:api[_-]?key|token|secret)\s*[:=]\s*["\']?[A-Za-z0-9_./+=-]{8,}["\']?|'
+        r'\bsk-[A-Za-z0-9_./+=-]{8,}\b|'
+        r'\b[A-Za-z0-9]{32,}\b',
+        re.IGNORECASE,
     )
+
+    ZERO_WIDTH_PATTERN = re.compile(r'[\u200B-\u200D\uFEFF]')
+    HOMOGLYPH_TRANSLATION = str.maketrans({
+        'а': 'a', 'А': 'A',  # Cyrillic a
+        'е': 'e', 'Е': 'E',  # Cyrillic e
+        'і': 'i', 'І': 'I',  # Cyrillic/Ukrainian i
+        'о': 'o', 'О': 'O',  # Cyrillic o
+        'р': 'p', 'Р': 'P',  # Cyrillic er
+        'с': 'c', 'С': 'C',  # Cyrillic es
+        'х': 'x', 'Х': 'X',  # Cyrillic ha
+        'у': 'y', 'У': 'Y',  # Cyrillic u
+    })
 
     # Injection detection patterns
     INJECTION_PATTERNS = [
@@ -46,6 +62,17 @@ class PromptSanitizer:
         re.compile(r'disregard\s+(?:all\s+|the\s+)?(previous|above|prior)', re.IGNORECASE),
         re.compile(r'bypass\s+(restrictions|rules|guidelines)', re.IGNORECASE),
     ]
+
+    def _normalize_for_detection(self, text: str) -> str:
+        """Normalize text so obfuscated prompt injections match detection rules."""
+        normalized = unicodedata.normalize('NFKC', text)
+        normalized = self.ZERO_WIDTH_PATTERN.sub('', normalized)
+        normalized = normalized.translate(self.HOMOGLYPH_TRANSLATION)
+        normalized = ''.join(
+            char for char in normalized
+            if unicodedata.category(char) not in {'Cf', 'Mn'}
+        )
+        return normalized
 
     def sanitize(self, text: str) -> str:
         """
@@ -64,9 +91,11 @@ class PromptSanitizer:
         if not self.enabled:
             return text
 
+        detection_text = self._normalize_for_detection(text)
+
         # Check for injection attempts first
         for pattern in self.INJECTION_PATTERNS:
-            if pattern.search(text):
+            if pattern.search(detection_text):
                 return "[POTENTIAL INJECTION DETECTED - REMOVED]"
 
         # Remove PII
@@ -74,9 +103,7 @@ class PromptSanitizer:
         text = self.SSN_PATTERN.sub('<SSN>', text)
         text = self.EMAIL_PATTERN.sub('<EMAIL>', text)
         text = self.PHONE_PATTERN.sub('<PHONE>', text)
-        # Note: API_KEY_PATTERN intentionally not applied due to high false positive rate
-        # (matches common base64 strings, hashes, tokens that aren't API keys)
-        # text = self.API_KEY_PATTERN.sub('<API_KEY>', text)
+        text = self.API_KEY_PATTERN.sub('[API_KEY_REDACTED]', text)
 
         return text
 

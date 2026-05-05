@@ -13,7 +13,9 @@ This is the main entry point for secure Cortex execution.
 """
 
 import argparse
+import fnmatch
 import json
+import re
 import sys
 import os
 from pathlib import Path
@@ -32,6 +34,18 @@ from security.approval_handler import ApprovalHandler
 sys.path.insert(0, str(Path(__file__).parent))
 from route_request import analyze_with_llm_logic, load_cortex_capabilities
 from execute_cortex import execute_cortex_streaming
+
+
+def _log_audit_event(audit_logger, **kwargs):
+    """Best-effort audit logging helper."""
+    try:
+        return audit_logger.log_execution(**kwargs), None
+    except Exception as exc:
+        print(f"Warning: failed to write audit log: {exc}", file=sys.stderr)
+        return None, str(exc)
+
+
+PATH_TOKEN_PATTERN = re.compile(r'(?<![\w.-])(?:~/?|/|\./|\.\./|[A-Za-z0-9_.-]+/)[A-Za-z0-9_./$~:-]+|(?<![\w.-])(?:\.ssh|\.aws|\.snowflake|\.env(?:\.[\w-]+)?|credentials\.(?:json|ya?ml)|[A-Za-z0-9_.-]+_key\.(?:p8|pem))(?![\w.-])', re.IGNORECASE)
 
 
 def execute_with_security(
@@ -100,19 +114,57 @@ def execute_with_security(
     sanitized_prompt = prompt
     if sanitize_enabled:
         sanitized_prompt = prompt_sanitizer.sanitize(prompt)
+        if sanitized_prompt == "[POTENTIAL INJECTION DETECTED - REMOVED]":
+            return {
+                "status": "blocked",
+                "reason": "Prompt injection attempt detected",
+                "message": "Cannot route prompts containing prompt injection attempts",
+                "sanitized_prompt": sanitized_prompt
+            }
+
+    envelope_mode = "RW"
+    if isinstance(envelope, dict):
+        envelope_mode = envelope.get("mode") or envelope.get("type") or "RW"
+    elif isinstance(envelope, str):
+        envelope_mode = envelope
+
+    if envelope_mode not in allowed_envelopes:
+        return {
+            "status": "blocked",
+            "reason": f"Envelope {envelope_mode} is not allowed by configuration",
+            "allowed_envelopes": allowed_envelopes,
+            "requested_envelope": envelope_mode,
+        }
 
     # Step 4: Check credential file allowlist (on original prompt)
     credential_allowlist = config_manager.get("security.credential_file_allowlist")
+    prompt_tokens = PATH_TOKEN_PATTERN.findall(prompt)
+    normalized_tokens = []
+    for token in prompt_tokens:
+        normalized_tokens.append(token)
+        if token.startswith("~"):
+            normalized_tokens.append(token.replace("~", str(Path.home()), 1))
     for pattern in credential_allowlist:
-        # Simple pattern matching - strip wildcards and check for contains
-        pattern_check = pattern.replace('~/', '').replace('**/', '').replace('*', '')
-        if pattern_check and pattern_check in prompt.lower():
-            return {
-                "status": "blocked",
-                "reason": "Prompt contains credential file path from allowlist",
-                "pattern_matched": pattern,
-                "message": "Cannot route prompts containing credential file paths for security"
-            }
+        expanded_pattern = str(Path(pattern).expanduser())
+        candidate_patterns = [pattern, expanded_pattern]
+        if pattern.startswith("~/**/"):
+            candidate_patterns.append("**/" + pattern.split("~/**/", 1)[1])
+        for token in normalized_tokens:
+            token_lower = token.lower()
+            for candidate_pattern in candidate_patterns:
+                pattern_lower = candidate_pattern.lower()
+                pattern_dir = pattern_lower.split("*")[0].rstrip("/")
+                if (
+                    fnmatch.fnmatch(token_lower, pattern_lower)
+                    or fnmatch.fnmatch(f"*/{token_lower}", pattern_lower)
+                    or (token_lower in {".ssh", ".aws", ".snowflake"} and pattern_dir.endswith(token_lower))
+                ):
+                    return {
+                        "status": "blocked",
+                        "reason": "Prompt contains credential file path from allowlist",
+                        "pattern_matched": pattern,
+                        "message": "Cannot route prompts containing credential file paths for security"
+                    }
 
     # Step 5: Determine routing (cortex vs claude) on sanitized prompt
     capabilities = load_cortex_capabilities()
@@ -128,7 +180,6 @@ def execute_with_security(
         return {
             "status": "initialized",
             "dry_run": True,
-            "prompt": prompt,
             "sanitized_prompt": sanitized_prompt,
             "routing": {
                 "decision": route_decision,
@@ -187,14 +238,34 @@ def execute_with_security(
                 prediction.get("reasoning", "")
             )
 
-            # Return prompt for user - actual approval happens externally
-            return {
+            approval_result = {
                 "status": "awaiting_approval",
                 "approval_prompt": approval_prompt,
                 "predicted_tools": predicted_tools,
                 "confidence": tool_confidence,
                 "envelope": envelope
             }
+            audit_id, audit_error = _log_audit_event(
+                audit_logger,
+                event_type="cortex_approval_requested",
+                user=os.environ.get("USER", "unknown"),
+                routing={"decision": route_decision, "confidence": route_confidence},
+                execution={
+                    "envelope": envelope,
+                    "approval_mode": approval_mode,
+                    "auto_approved": False,
+                    "predicted_tools": predicted_tools,
+                    "allowed_tools": []
+                },
+                result={"status": "awaiting_approval"},
+                security={
+                    "sanitized": sanitize_enabled,
+                    "pii_removed": sanitize_enabled and prompt != sanitized_prompt
+                }
+            )
+            approval_result["audit_id"] = audit_id
+            approval_result["audit_error"] = audit_error
+            return approval_result
 
     elif approval_mode == "auto":
         # Auto mode: auto-approve all tools
@@ -205,12 +276,6 @@ def execute_with_security(
         allowed_tools = None  # None means rely on envelope only
 
     # Step 11: Execute with Cortex using the sanitized prompt.
-    envelope_mode = "RW"
-    if isinstance(envelope, dict):
-        envelope_mode = envelope.get("mode") or envelope.get("type") or "RW"
-    elif isinstance(envelope, str):
-        envelope_mode = envelope
-
     if mock_user_approval:
         execution_result = {
             "status": "success",
@@ -224,15 +289,14 @@ def execute_with_security(
             approval_mode=approval_mode,
             allowed_tools=allowed_tools,
             timeout_seconds=int(config_manager.get("security.execution_timeout_seconds", 5)),
+            deploy_confirmed=bool(config_manager.get("security.deploy_envelope_confirmation", True) and envelope_mode == "DEPLOY"),
         )
         execution_result.setdefault("status", "success" if not execution_result.get("error") else "error")
         execution_result.setdefault("tools_used", allowed_tools or ["envelope-controlled"])
 
     # Step 12: Audit logging
-    audit_id = None
-    audit_error = None
-    try:
-        audit_id = audit_logger.log_execution(
+    audit_id, audit_error = _log_audit_event(
+        audit_logger,
         event_type="cortex_execution",
         user=os.environ.get("USER", "unknown"),
         routing={"decision": route_decision, "confidence": route_confidence},
@@ -244,14 +308,11 @@ def execute_with_security(
             "allowed_tools": allowed_tools
         },
         result=execution_result,
-            security={
-                "sanitized": sanitize_enabled,
-                "pii_removed": sanitize_enabled and prompt != sanitized_prompt
-            }
-        )
-    except Exception as exc:
-        audit_error = str(exc)
-        print(f"Warning: failed to write audit log: {audit_error}", file=sys.stderr)
+        security={
+            "sanitized": sanitize_enabled,
+            "pii_removed": sanitize_enabled and prompt != sanitized_prompt
+        }
+    )
 
     # Step 13: Cache result (optional - for future optimization)
     # For now, skip caching

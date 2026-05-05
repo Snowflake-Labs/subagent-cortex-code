@@ -17,13 +17,13 @@ cp -r "$REPO_ROOT/shared/security/"* "$TARGET/security/"
 
 # Parameterize for Cursor (replace __CODING_AGENT__ with cursor)
 echo "Parameterizing for Cursor..."
-if [[ "$OSTYPE" == "darwin"* ]]; then
-    # macOS (BSD sed)
-    find "$TARGET" -name "*.py" -exec sed -i '' 's/__CODING_AGENT__/cursor/g' {} \;
-else
-    # Linux (GNU sed)
-    find "$TARGET" -name "*.py" -exec sed -i 's/__CODING_AGENT__/cursor/g' {} \;
-fi
+python3 - "$TARGET" <<'PY'
+import sys
+from pathlib import Path
+root = Path(sys.argv[1])
+for path in root.rglob("*.py"):
+    path.write_text(path.read_text().replace("__CODING_AGENT__", "cursor"))
+PY
 
 # Copy Cursor specific files
 echo "Copying Cursor specific files..."
@@ -33,8 +33,11 @@ if [ -f "$REPO_ROOT/skills/cortex-code/cortex-snowflake-routing.mdc" ]; then
     cp "$REPO_ROOT/skills/cortex-code/cortex-snowflake-routing.mdc" "$TARGET/"
 fi
 
-# Make scripts executable
-chmod +x "$TARGET/scripts/"*.py
+# Secure installed files
+chmod 700 "$TARGET"
+find "$TARGET" -type d -exec chmod 700 {} \;
+find "$TARGET" -type f -exec chmod 600 {} \;
+find "$TARGET/scripts" -name "*.py" -exec chmod 700 {} \;
 
 echo ""
 echo "✓ Cursor skill installed successfully"
