@@ -18,15 +18,26 @@ Recommended from a local clone:
 bash integrations/cursor/install.sh
 ```
 
+This installs the skill to `~/.cursor/skills/cortex-code/`.
+
 Or install the packaged skill via `npx`:
 
 ```bash
 npx skills add snowflake-labs/subagent-cortex-code --copy --global
 ```
 
-Both paths install the skill to `~/.cursor/skills/cortex-code/`.
+This installs the skill to the universal skills directory at `~/.agents/skills/cortex-code/`.
 
 **Step 2 — Activate the Cursor routing rule:**
+
+If you installed via `npx`:
+
+```bash
+mkdir -p ~/.cursor/rules
+cp ~/.agents/skills/cortex-code/cortex-snowflake-routing.mdc ~/.cursor/rules/
+```
+
+If you installed from a local clone with `integrations/cursor/install.sh`:
 
 ```bash
 mkdir -p ~/.cursor/rules
@@ -122,7 +133,10 @@ Handle normally without skill:
 ## Verify installation
 
 ```bash
-# Skill installed
+# Skill installed via npx
+ls ~/.agents/skills/cortex-code/SKILL.md
+
+# Skill installed via integrations/cursor/install.sh
 ls ~/.cursor/skills/cortex-code/SKILL.md
 
 # Routing rule active

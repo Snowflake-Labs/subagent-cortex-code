@@ -82,13 +82,15 @@ See [`integrations/claude-code/README.md`](integrations/claude-code/README.md) f
 npx skills add snowflake-labs/subagent-cortex-code --copy --global
 ```
 
-This installs `skills/cortex-code/` to `~/.cursor/skills/cortex-code/`.
+This installs `skills/cortex-code/` to the universal skills directory at `~/.agents/skills/cortex-code/`.
 
 **Step 2 — Activate the auto-routing rule:**
 ```bash
 mkdir -p ~/.cursor/rules
-cp ~/.cursor/skills/cortex-code/cortex-snowflake-routing.mdc ~/.cursor/rules/
+cp ~/.agents/skills/cortex-code/cortex-snowflake-routing.mdc ~/.cursor/rules/
 ```
+
+If you installed from a local clone with `bash integrations/cursor/install.sh`, copy the rule from `~/.cursor/skills/cortex-code/` instead.
 
 **Step 3 — Restart Cursor.**
 
@@ -96,7 +98,7 @@ Without the routing rule you type `/cortex-code your question`. With it, Cursor 
 
 **Verify:**
 ```bash
-ls ~/.cursor/skills/cortex-code/SKILL.md
+ls ~/.agents/skills/cortex-code/SKILL.md
 ls ~/.cursor/rules/cortex-snowflake-routing.mdc
 ```
 
@@ -391,7 +393,8 @@ cortex connections create   # to add one
 **Skill not loading (Claude Code / Cursor):**
 ```bash
 ls ~/.claude/skills/cortex-code/SKILL.md                    # Claude Code
-ls ~/.cursor/skills/cortex-code/SKILL.md             # Cursor
+ls ~/.agents/skills/cortex-code/SKILL.md                    # Cursor via npx
+ls ~/.cursor/skills/cortex-code/SKILL.md                    # Cursor via local install script
 ls ~/.codeium/windsurf/skills/cortex-code/SKILL.md          # Windsurf
 # If missing, re-run: npx skills add snowflake-labs/subagent-cortex-code --copy --global
 ```
